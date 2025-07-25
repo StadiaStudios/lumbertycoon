@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumber Tycoon Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <!-- Tone.js for sound effects -->
+    <link rel="icon" type="image/x-icon" href="assets/appicon.png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+
+    <!-- PWA Meta Tags for iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Lumber Tycoon">
+    <link rel="apple-touch-icon" href="assets/appicon.png">
+
+    <!-- General PWA Meta Tags (for all browsers supporting Web App Manifest) -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a202c"/>
+
+    <style>
+        body {
+          font-family: 'Inter', sans-serif;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          justify-content: center;
+          align-items: flex-start; /* Align to top for better content flow */
+          min-height: 100vh;
+          background-color: #1a202c; /* Tailwind gray-900 */
+          color: #e2e8f0; /* Tailwind gray-100 */
+          /* Hide scrollbar for various browsers */
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+        }
+        /* Hide scrollbar for Webkit browsers (Chrome, Safari) */
+        body::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Custom Scrollbar Styles */
+        /* For Webkit browsers (Chrome, Safari) */
+        ::-webkit-scrollbar {
+            width: 12px; /* Width of the scrollbar */
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2d3748; /* Color of the track */
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568; /* Color of the scroll thumb */
+            border-radius: 10px;
+            border: 3px solid #2d3748; /* Padding around the thumb */
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6a758a; /* Color of the scroll thumb on hover */
+        }
+
+        /* For Firefox */
+        html {
+            scrollbar-width: thin; /* "auto" or "thin" */
+            scrollbar-color: #4a5568 #2d3748; /* thumb color track color */
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 4xl; /* Equivalent to max-w-4xl */
+            background-color: #2d3748; /* Tailwind gray-800 */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+            padding: 1.5rem; /* p-6 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 1rem; /* Add some top margin */
+            margin-bottom: 1rem; /* Add some bottom margin */
+        }
+        /* Existing custom CSS for game elements, adapted for dark theme */
+        /* Removed .tree and .tree::before CSS rules */
+        .tree-image {
+          width: 100%; /* Fill parent wrapper */
+          height: 100%; /* Fill parent wrapper */
+          object-fit: contain;
+          cursor: pointer;
+          transition: transform 0.1s ease-out;
+          box-shadow: none; /* Removed box-shadow to remove the "border" effect */
+          border: none; /* Explicitly remove any border */
+          z-index: 1; /* Ensure it's below the progress bar */
+        }
+        .tree-image:hover {
+          transform: scale(1.05);
+        }
+        .animate-shake {
+          animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+          transform: translate3d(0, 0, 0);
+          backface-visibility: hidden;
+          perspective: 1000px;
+        }
+        @keyframes shake {
+          10%, 90% { transform: translate3d(-1px, 0, 0); }
+          20%, 80% { transform: translate3d(2px, 0, 0); }
+          30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+          40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .furniture-item {
+          position: absolute;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.75rem;
+          color: #eee; /* Lighter text for items */
+          overflow: hidden;
+          transition: transform 0.2s ease-in-out;
+          cursor: pointer; /* Changed to pointer for rotation/selection */
+        }
+        .furniture-item.moving-selected {
+            border: 3px solid #818cf8; /* Indigo-300 */
+            box-shadow: 0 0 0 5px rgba(129, 140, 248, 0.3);
+        }
+        .furniture-item.deleting-active {
+            border: 3px solid #ef4444; /* Red-500 */
+            box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.3);
+        }
+        .furniture-item img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+        .home-grid {
+          background-color: #2a2a2a; /* Darker home background */
+          border: 2px dashed #666; /* Lighter dashed border */
+          position: relative;
+          overflow: hidden;
+          background-size: contain; /* Reverted to 'contain' to prevent stretching and ensure full visibility */
+          background-repeat: no-repeat; /* Prevents tiling */
+          background-position: center; /* Centers the image */
+        }
+        .home-grid.rearranging-mode {
+            cursor: cell; /* Indicates placement mode */
+        }
+        .shop-item {
+          cursor: pointer;
+          transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+        }
+        .shop-item:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 10px rgba(0,0,0,0.25);
+        }
+        .shop-item.selected {
+          border: 3px solid #818cf8; /* Indigo-300 */
+          box-shadow: 0 0 0 5px rgba(129, 140, 248, 0.3);
+        }
+
+        .progress-bar-container {
+          position: absolute;
+          bottom: 10px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 80%;
+          height: 10px;
+          background-color: rgba(0,0,0,0.7); /* Made darker for better visibility */
+          border-radius: 5px;
+          overflow: hidden;
+          z-index: 20; /* Ensure it's on top of the tree image */
+        }
+
+        .progress-bar {
+          height: 100%;
+          background-color: #00FF00; /* Bright green for clear progress */
+          width: 0%;
+          border-radius: 5px;
+          transition: width 0.05s linear; /* Smooth progress animation */
+        }
+        /* Custom styles for the icons */
+        .currency-icon, .nav-icon {
+            width: 24px; /* w-6 */
+            height: 24px; /* h-6 */
+            display: inline-block;
+            margin-right: 8px; /* mr-2 */
+            vertical-align: middle; /* Align with text */
+        }
+        /* New style for purple progress bar */
+        .progress-bar-purple {
+            background-color: #8b5cf6; /* A shade of purple */
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: #2d3748; /* Tailwind gray-800 */
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            width: 90%;
+            max-width: 500px;
+            color: #e2e8f0;
+            position: relative;
+        }
+
+        .modal-close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #e2e8f0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-root" class="app-container">
+        <!-- Content will be rendered here by JavaScript -->
+    </div>
+
+    <script type="module">
+        // Game state variables
+        let woodCount = 0;
+        let moneyCount = 0;
+        let grapeLumberCount = 0; // New: Counter for grape lumber
+        let currentView = 'forest'; // 'forest', 'home', 'lumberMill', 'axeShop', 'biomes', 'purpleForest'
+        let lastLocation = 'forest'; // New: To store the last visited location
+        let selectedFurnitureType = null; // For buying new furniture
+        let sellWoodAmount = 1;
+        let sellGrapeWoodAmount = 1; // New: Amount of grape lumber to sell
+
+        let isCutting = false;
+        let cuttingProgress = 0; // 0-100
+        let cuttingIntervalRef = null;
+        let currentCuttingTreeId = null;
+        let currentAxeId = 'basic_axe'; // Default axe
+        let ownedAxes = ['basic_axe']; // Start with basic axe
+
+        // New state variables for furniture rearrangement and deletion
+        let isRearrangingFurniture = false;
+        let selectedFurnitureToMoveId = null; // The ID of the furniture being moved
+        let isDeletingFurniture = false; // New state variable for delete mode
+
+        // New state variables for selling wood progress
+        let isSelling = false;
+        let sellingProgress = 0; // 0-100
+        let sellingIntervalRef = null;
+        let currentSellAmount = 0; // To store the amount being sold during processing
+
+        // New state variables for selling grape lumber progress
+        let isSellingGrape = false; // New: State for selling grape lumber
+        let sellingGrapeProgress = 0; // New: Progress for selling grape lumber
+        let sellingGrapeIntervalRef = null; // New: Interval ref for selling grape lumber
+        let currentSellGrapeAmount = 0; // New: Amount of grape lumber being sold
+
+        // House related state
+        let currentHouseId = 'basic_home'; // Default house
+        let ownedHouses = ['basic_home']; // Start with basic home
+        // This object will store furniture for each house
+        let allHousesFurniture = { 'basic_home': [] };
+        let homeSubView = 'furnitureShop'; // 'furnitureShop', 'changeHome', 'buyHouses'
+        let currentFurnitureCategory = 'furniture'; // 'furniture', 'pets' - New state for furniture categories
+        let showFurnitureShop = false; // New state to control furniture shop visibility
+
+        // New state variable for biomes unlock
+        let biomesUnlocked = false;
+        // New state variable for Lumber Mill upgrade
+        let lumberMillUpgraded = false; // Tracks if the lumber mill has been upgraded
+
+        // Tone.js sound effect setup
+        let sellingSound; 
+
+        // Function to initialize Tone.js and create the sounds
+        const setupAudio = async () => {
+            // Start Tone.js audio context on user interaction
+            document.documentElement.addEventListener('mousedown', () => {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                    console.log('Tone.js audio context started.');
+                }
+            }, { once: true });
+
+            // Create a Tone.Player for the selling sound (MP3)
+            // IMPORTANT: Replace this placeholder URL with your actual MP3 sound file URL.
+            sellingSound = new Tone.Player({
+                url: "assets/sound/lumbermill.mp3", // Placeholder MP3 URL
+                autostart: false,
+                loop: false,
+                volume: 100 // Adjust volume as needed
+            }).toDestination();
+        };
+
+        // Local Storage Key
+        const LOCAL_STORAGE_KEY = 'lumberTycoonSimulatorSave';
+
+        // Utility function to generate a unique ID
+        const generateUniqueId = () => {
+            return 'id-' + Math.random().toString(36).substr(2, 9);
+        };
+
+        // Furniture data - Updated with explicit width and height for consistent placement
+        const furnitureItems = [
+            { id: 'chair', name: 'Chair', moneyCost: 10, imageUrl: 'assets/furniture/chair.png', width: 60, height: 60, category: 'furniture' },
+            { id: 'table', name: 'Table', moneyCost: 23, imageUrl: 'assets/furniture/table.png', width: 90, height: 90, category: 'furniture' },
+            { id: 'bed', name: 'Bed', moneyCost: 80, imageUrl: 'assets/furniture/bed.png', width: 90, height: 100, category: 'furniture' },
+            { id: 'plant', name: 'Plant', moneyCost: 20, imageUrl: 'assets/furniture/plant1.png', width: 60, height: 60, category: 'furniture' },
+            { id: 'sofa', name: 'Sofa', moneyCost: 130, imageUrl: 'assets/furniture/sofa.png', width: 140, height: 110, category: 'furniture' },
+            { id: 'statue', name: 'Dragon Statue', moneyCost: 500, imageUrl: 'assets/furniture/statue/dragon.png', width: 150, height: 200, category: 'furniture' }, // New statue item
+            { id: 'bookshelf', name: 'Pool', moneyCost: 120, imageUrl: 'assets/furniture/pool.png', width: 100, height: 110, category: 'furniture' }, // New Bookshelf item
+            { id: 'grand_piano', name: 'Water Fountain', moneyCost: 200, imageUrl: 'assets/furniture/water-fountain.png', width: 160, height: 140, category: 'furniture' }, // New Grand Piano item
+            { id: 'dog', name: 'Dog', moneyCost: 200, imageUrl: 'assets/pets/dog.gif', width: 50, height: 50, category: 'pets' },
+            { id: 'dragon', name: 'Dragon', moneyCost: 1000, imageUrl: 'assets/pets/dragon.png', width: 150, height: 130, category: 'pets' }, // Added Dragon pet
+            { id: 'fireplace', name: 'Small Fountain', moneyCost: 180, imageUrl: 'assets/furniture/small-fountain.png', width: 100, height: 100, category: 'furniture' },
+            { id: 'rug', name: 'High End Fountain', moneyCost: 350, imageUrl: 'assets/furniture/extra-large-fountain.png', width: 150, height: 150, category: 'furniture' },
+            { id: 'pool_table', name: 'Pool Table', moneyCost: 110, imageUrl: 'assets/furniture/pool-table.png', width: 90, height: 80, category: 'furniture' },
+            { id: 'outdoor_pool', name: 'Outdoor Pool', moneyCost: 750, imageUrl: 'assets/furniture/outdoor-pool.png', width: 150, height: 100, category: 'furniture' },
+            { id: 'demonic_pool', name: 'Demonic Pool', moneyCost: 2999, imageUrl: 'assets/furniture/demonic-pool.png', width: 140, height: 120, category: 'furniture' },
+            { id: 'chest', name: 'Safe', moneyCost: 50, imageUrl: 'assets/furniture/safe.png', width: 80, height: 80, category: 'furniture' }, // New Chest item
+            { id: 'gun_case', name: 'Gun Case', moneyCost: 100, imageUrl: 'assets/furniture/gun-case.png', width: 90, height: 60, category: 'furniture' }, // Added Gun Case
+            { id: 'scare_crow', name: 'Scare Crow', moneyCost: 230, imageUrl: 'assets/furniture/scare-crow.png', width: 90, height: 150, category: 'furniture' }, // Added Scare Crow
+            { id: 'money_wagon', name: 'Money Wagon', moneyCost: 1500, imageUrl: 'assets/furniture/money_wagon.png', width: 120, height: 80, category: 'furniture' }, // New Money Wagon item
+        ];
+
+        // Axe data
+        const axeItems = [
+            { id: 'basic_axe', name: 'Basic Axe', moneyCost: 0, cutSpeedMultiplier: 1, imageUrl: 'assets/axes/basic-axe.png' }, // Default axe
+            { id: 'stone_axe', name: 'Stone Axe', moneyCost: 50, cutSpeedMultiplier: 1.5, imageUrl: 'assets/axes/stone-axe.png' }, // 50% faster
+            { id: 'iron_axe', name: 'Iron Axe', moneyCost: 150, cutSpeedMultiplier: 2.5, imageUrl: 'assets/axes/iron-axe.png' }, // 150% faster
+            { id: 'diamond_axe', name: 'Diamond Axe', moneyCost: 300, cutSpeedMultiplier: 5, imageUrl: 'assets/axes/diamond-axe.png' }, // 400% faster
+            { id: 'steel_axe', name: 'Glowing Axe', moneyCost: 325, cutSpeedMultiplier: 5, imageUrl: 'assets/axes/steel-axe.png' }, // New Steel Axe, 5x faster
+            { id: 'gold_axe', name: 'Juicy Axe', moneyCost: 500, cutSpeedMultiplier: 20, imageUrl: 'assets/axes/juicey-axe.png' }, // New Gold Axe, 6x faster (6% extra damage)
+            { id: 'mighty_axe', name: 'Phase Axe', moneyCost: 750, cutSpeedMultiplier: 30, imageUrl: 'assets/axes/phase-axe.png' }, // New Mighty Axe, 40% extra damage (20 * 1.4 = 28)
+        ];
+
+        // House data
+        const houseItems = [
+            { id: 'basic_home', name: 'Basic Home', moneyCost: 0, imageUrl: 'assets/homes/basic-home.png' },
+            { id: 'cottage', name: 'Medium Home', moneyCost: 500, imageUrl: 'assets/homes/medium-home.png' },
+            { id: 'mansion', name: 'Grand Mansion', moneyCost: 2000, imageUrl: 'assets/homes/grand-mansion.png' },
+            { id: 'backyard', name: 'Backyard', moneyCost: 1000, imageUrl: 'assets/homes/backyard.png' }, // New Backyard home
+        ];
+
+        // Biome Data - Contains all biome definitions and their trees
+        const biomesData = {
+            'forest': {
+                name: 'Green Forest',
+                iconUrl: 'assets/tree.png',
+                trees: [
+                    { id: 'tree1', top: '20%', left: '10%', cutTime: 1000, imageUrl: 'assets/tree.png' }, // 1 second
+                    { id: 'tree2', top: '50%', left: '30%', cutTime: 1500, imageUrl: 'assets/tree.png' }, // 1.5 seconds
+                    { id: 'tree3', top: '30%', left: '60%', cutTime: 800, imageUrl: 'assets/tree.png' },  // 0.8 seconds
+                    { id: 'tree4', top: '65%', left: '80%', cutTime: 2000, imageUrl: 'assets/tree.png' }, // 2 seconds
+                    { id: 'tree5', top: '10%', left: '40%', cutTime: 1200, imageUrl: 'assets/tree.png' }, // 1.2 seconds
+                    { id: 'tree6', top: '70%', left: '15%', cutTime: 900, imageUrl: 'assets/tree.png' },  // 0.9 seconds
+                    { id: 'tree7', top: '45%', left: '85%', cutTime: 1800, imageUrl: 'assets/tree.png' }, // 1.8 seconds
+                ]
+            },
+            'purpleForest': {
+                name: 'Purple Tree Forest',
+                iconUrl: 'assets/tree2.png', // Using the biomes icon for now, could be a new purple tree icon
+                trees: [
+                    { id: 'purpleTree1', top: '20%', left: '10%', cutTime: 5000, imageUrl: 'assets/tree2.png' }, // Increased from 2500 to 5000
+                    { id: 'purpleTree2', top: '50%', left: '30%', cutTime: 6000, imageUrl: 'assets/tree2.png' }, // Increased from 3000 to 6000
+                    { id: 'purpleTree3', top: '30%', left: '60%', cutTime: 4400, imageUrl: 'assets/tree2.png' },  // Increased from 2200 to 4400
+                    { id: 'purpleTree4', top: '65%', left: '80%', cutTime: 7000, imageUrl: 'assets/tree2.png' }, // Increased from 3500 to 7000
+                    { id: 'purpleTree5', top: '10%', left: '40%', cutTime: 5400, imageUrl: 'assets/tree2.png' }, // Increased from 2700 to 5400
+                ]
+            }
+        };
+
+
+        // Conversion rate for wood to money
+        const WOOD_TO_MONEY_RATE = 1; // 1 wood = 1 money
+        const GRAPE_WOOD_TO_MONEY_RATE = 3.50; // New: 1 grape wood = 3.50 money
+        const SELL_TIME_PER_WOOD_MS = 100; // 100ms per wood unit to sell
+        const SELL_TIME_PER_GRAPE_WOOD_MS = 150; // New: 150ms per grape wood unit to sell
+        const LUMBER_MILL_UPGRADE_COST = 500; // Cost to upgrade the lumber mill
+
+        // Icon URLs - Updated to use placeholder images
+        const woodIconUrl = 'assets/items/lumber.png';
+        const moneyIconUrl = 'assets/items/cash.png';
+        const grapeLumberIconUrl = 'assets/items/purple-lumber.png'; // New: Placeholder icon for Grape Lumber
+        const lumberMillIconUrl = 'assets/nav/lumbermill.png';
+        const axeShopIconUrl = 'assets/nav/shop.png';
+        const homeIconUrl = 'assets/nav/home.png';
+        const biomesIconUrl = 'assets/tree2.png'; // New icon for biomes
+
+
+        // --- UI Update Functions ---
+        const getAppRoot = () => document.getElementById('app-root');
+
+        const updateCurrencyDisplay = () => {
+            const woodSpan = document.getElementById('woodCount');
+            const moneySpan = document.getElementById('moneyCount');
+            const grapeLumberSpan = document.getElementById('grapeLumberCount'); // New: Get grape lumber span
+            if (woodSpan) woodSpan.textContent = woodCount;
+            if (moneySpan) moneySpan.textContent = moneyCount;
+            if (grapeLumberSpan) grapeLumberSpan.textContent = grapeLumberCount; // New: Update grape lumber count
+        };
+
+        const updateAxeDisplay = () => {
+            const axeDisplayDiv = document.getElementById('currentAxeDisplay');
+            if (!axeDisplayDiv) return;
+
+            const currentAxe = axeItems.find(axe => axe.id === currentAxeId);
+            if (currentAxe) {
+                axeDisplayDiv.innerHTML = `
+                    <span>Current Axe:</span>
+                    <img src="${currentAxe.imageUrl}" alt="${currentAxe.name}" class="w-8 h-8 rounded-full" />
+                    <span class="text-blue-400">${currentAxe.name}</span>
+                    <span class="text-sm text-gray-300">(Cuts ${currentAxe.cutSpeedMultiplier}x faster)</span>
+                `;
+                axeDisplayDiv.classList.remove('hidden');
+            } else {
+                axeDisplayDiv.classList.add('hidden');
+            }
+        };
+
+        const setupNavigation = () => {
+            const navContainer = document.createElement('div');
+            navContainer.className = "flex flex-wrap justify-center space-x-4 mb-8"; // Use flex-wrap for responsiveness
+
+            const createNavButton = (viewName, label, iconUrl, activeClass, inactiveClass, onClick = null) => {
+                const button = document.createElement('button');
+                // Use img tag for icon
+                button.innerHTML = `<img src="${iconUrl}" alt="${label} Icon" class="nav-icon" />${label}`;
+                button.className = `px-6 py-3 rounded-full font-semibold transition-all duration-200 ease-in-out ${currentView === viewName ? activeClass : inactiveClass}`;
+                button.addEventListener('click', () => {
+                    // If currently selling, stop the process before navigating
+                    if (isSelling) {
+                        clearInterval(sellingIntervalRef);
+                        sellingIntervalRef = null;
+                        isSelling = false;
+                        sellingProgress = 0;
+                        currentSellAmount = 0;
+                        // Stop selling sound if navigating away while selling
+                        if (sellingSound && sellingSound.state === 'started') { // Check if sound is playing
+                            sellingSound.stop();
+                        }
+                    }
+                    // New: If currently selling grape lumber, stop the process
+                    if (isSellingGrape) {
+                        clearInterval(sellingGrapeIntervalRef);
+                        sellingGrapeIntervalRef = null;
+                        isSellingGrape = false;
+                        sellingGrapeProgress = 0;
+                        currentSellGrapeAmount = 0;
+                        if (sellingSound && sellingSound.state === 'started') {
+                            sellingSound.stop();
+                        }
+                    }
+                    // If currently cutting, stop the process before navigating
+                    if (isCutting) {
+                        clearInterval(cuttingIntervalRef);
+                        cuttingIntervalRef = null;
+                        isCutting = false;
+                        cuttingProgress = 0;
+                        currentCuttingTreeId = null;
+                    }
+
+                    // Reset all furniture modes when navigating between main views
+                    isRearrangingFurniture = false;
+                    isDeletingFurniture = false;
+                    selectedFurnitureToMoveId = null;
+                    selectedFurnitureType = null;
+                    showFurnitureShop = false; // Hide furniture shop by default when navigating away from or to home
+
+                    currentView = viewName;
+                    lastLocation = viewName; // Update lastLocation on navigation
+                    // Reset homeSubView and furniture modes when navigating away from or to home
+                    if (viewName === 'home') {
+                        homeSubView = 'furnitureShop'; // Reset to default home sub-view
+                        currentFurnitureCategory = 'furniture'; // Reset to default furniture category
+                    }
+                    
+                    if (onClick) { // Execute custom click handler if provided
+                        onClick();
+                    } else {
+                        renderApp();
+                        saveGame(); // Save game state after navigation
+                    }
+                });
+                return button;
+            };
+
+            // Main Navigation Buttons
+            navContainer.appendChild(createNavButton('forest', 'Chop Trees', biomesData.forest.iconUrl, 'bg-green-600 text-white shadow-lg', 'bg-gray-700 text-gray-300 hover:bg-gray-600'));
+            navContainer.appendChild(createNavButton('lumberMill', 'Lumber Mill', lumberMillIconUrl, 'bg-orange-600 text-white shadow-lg', 'bg-gray-700 text-gray-300 hover:bg-gray-600'));
+            navContainer.appendChild(createNavButton('axeShop', 'Axe Shop', axeShopIconUrl, 'bg-red-600 text-white shadow-lg', 'bg-gray-700 text-gray-300 hover:bg-gray-600'));
+            navContainer.appendChild(createNavButton('home', 'Your Home', homeIconUrl, 'bg-indigo-600 text-white shadow-lg', 'bg-gray-700 text-gray-300 hover:bg-gray-600'));
+            
+            // New Biomes Button - only show if unlocked
+            if (biomesUnlocked) {
+                navContainer.appendChild(createNavButton('biomes', 'Biomes', biomesIconUrl, 'bg-purple-600 text-white shadow-lg', 'bg-gray-700 text-gray-300 hover:bg-gray-600'));
+            }
+
+            return navContainer;
+        };
+
+        // --- View Rendering Functions ---
+        const renderTreeChoppingView = (biomeId) => {
+            const biome = biomesData[biomeId];
+            if (!biome) {
+                console.error(`Biome with ID ${biomeId} not found.`);
+                return document.createElement('div'); // Return an empty div or error message
+            }
+
+            const choppingDiv = document.createElement('div');
+            // Dynamically set background color based on biome
+            const biomeBgColor = biomeId === 'purpleForest' ? 'bg-purple-900/50' : 'bg-green-900/50';
+            const biomeGroundColor = biomeId === 'purpleForest' ? 'bg-purple-800' : 'bg-green-800';
+
+            choppingDiv.className = `w-full h-[400px] bg-gray-700 rounded-lg shadow-inner p-8 flex flex-wrap justify-around items-center gap-8 relative overflow-hidden`;
+            choppingDiv.innerHTML = `
+                <div class="absolute top-0 left-0 w-full h-full ${biomeBgColor} to-transparent pointer-events-none"></div>
+                <div class="absolute bottom-0 left-0 w-full h-20 ${biomeGroundColor} rounded-b-lg pointer-events-none"></div>
+                <p class="text-lg text-gray-300 absolute bottom-4 left-1/2 -translate-x-1/2">Click on trees to chop wood!</p>
+            `;
+
+            biome.trees.forEach(treeData => {
+                const treeWrapper = document.createElement('div'); // Create a wrapper for positioning
+                treeWrapper.style.position = 'absolute';
+                treeWrapper.style.top = treeData.top;
+                treeWrapper.style.left = treeData.left;
+                treeWrapper.style.width = '80px'; /* Match image width */
+                treeWrapper.style.height = '120px'; /* Match image height */
+
+                const treeElement = document.createElement('img'); // Change to img tag
+                treeElement.id = `tree-${treeData.id}`; // Unique ID for each tree DOM element
+                treeElement.className = `tree-image ${isCutting && currentCuttingTreeId !== treeData.id ? 'cursor-not-allowed opacity-70' : ''}`;
+                treeElement.src = treeData.imageUrl; // Set image source
+                treeElement.alt = `Tree ${treeData.id}`; // Add alt text
+
+                treeElement.addEventListener('click', (e) => chopTree(treeData.id, e));
+
+                // Progress bar container for each tree
+                const progressBarContainer = document.createElement('div');
+                progressBarContainer.className = "progress-bar-container";
+                const progressBar = document.createElement('div');
+                // Add class for purple progress bar if it's the purple forest biome
+                progressBar.className = `progress-bar ${biomeId === 'purpleForest' ? 'progress-bar-purple' : ''}`;
+                progressBarContainer.appendChild(progressBar);
+                
+                // Append image first, then progress bar container so progress bar is on top
+                treeWrapper.appendChild(treeElement); 
+                treeWrapper.appendChild(progressBarContainer); 
+
+                // Control visibility based on cutting state
+                if (isCutting && currentCuttingTreeId === treeData.id) {
+                    progressBarContainer.classList.remove('hidden');
+                    progressBar.style.width = `${cuttingProgress}%`;
+                } else {
+                    progressBarContainer.classList.add('hidden');
+                }
+
+                choppingDiv.appendChild(treeWrapper); // Append wrapper to chopping div
+            });
+
+            return choppingDiv;
+        };
+
+        const renderLumberMillView = () => {
+            const lumberMillDiv = document.createElement('div');
+            // Changed align-items to flex-start and added overflow-auto
+            lumberMillDiv.className = "w-full h-[540px] bg-gray-700 rounded-lg shadow-inner p-8 flex flex-col items-start relative overflow-auto";
+            lumberMillDiv.innerHTML = `
+                <h2 class="text-3xl font-bold text-gray-200 mb-6">Welcome to the Lumber Mill!</h2>
+                <p class="text-lg text-gray-300 mb-4">Sell your wood here to earn money.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full"> <!-- New grid container -->
+                    <div class="bg-gray-800 p-6 rounded-lg shadow-md flex flex-col items-center gap-4">
+                        <h3 class="text-2xl font-bold text-gray-100">Sell Regular Lumber</h3>
+                        <div class="flex items-center space-x-2">
+                            <label for="sellAmount" class="text-lg font-medium text-gray-100">Sell:</label>
+                            <input
+                                type="number"
+                                id="sellAmount"
+                                min="1"
+                                value="${sellWoodAmount}"
+                                class="w-24 p-2 border border-gray-600 rounded-md text-center text-lg font-semibold bg-gray-700 text-gray-100"
+                                ${isSelling || isSellingGrape ? 'disabled' : ''}
+                            />
+                            <span class="text-lg font-medium text-gray-100">Wood</span>
+                        </div>
+                        <p class="text-md text-gray-300">You will get: <span class="font-bold text-green-400" id="sellMoneyPreview">${sellWoodAmount * WOOD_TO_MONEY_RATE}</span> <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+
+                        <!-- Selling Progress Bar -->
+                        <div id="sellingProgressBarContainer" class="progress-bar-container w-full max-w-xs ${isSelling ? '' : 'hidden'}">
+                            <div id="sellingProgressBar" class="progress-bar bg-blue-500" style="width: ${sellingProgress}%"></div>
+                        </div>
+                        <p id="sellingStatus" class="text-sm text-blue-400 ${isSelling ? '' : 'hidden'}">Processing ${currentSellAmount} wood...</p>
+
+                        <button id="sellWoodButton" class="px-8 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out
+                            ${woodCount >= sellWoodAmount && sellWoodAmount > 0 && !isSelling && !isSellingGrape ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-600 cursor-not-allowed'}"
+                            ${woodCount < sellWoodAmount || sellWoodAmount <= 0 || isSelling || isSellingGrape ? 'disabled' : ''}>
+                            Exchange Lumber
+                        </button>
+                        ${woodCount < sellWoodAmount && !isSelling && !isSellingGrape ? '<p class="text-red-400 text-sm mt-2">Not enough wood!</p>' : ''}
+                    </div>
+
+                    <!-- Upgrade Lumber Mill Section -->
+                    <div class="bg-gray-800 p-6 rounded-lg shadow-md flex flex-col items-center gap-4 ${lumberMillUpgraded ? 'hidden' : ''}">
+                        <h3 class="text-2xl font-bold text-yellow-300">Cannot Exchange</h3>
+                        <p class="text-lg text-gray-300">Locked</p>
+                        <p class="text-xl font-bold text-green-400">Cost: ${LUMBER_MILL_UPGRADE_COST} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                        <button id="upgradeLumberMillButton" class="px-8 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out
+                            ${moneyCount >= LUMBER_MILL_UPGRADE_COST ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-600 cursor-not-allowed'}"
+                            ${moneyCount < LUMBER_MILL_UPGRADE_COST ? 'disabled' : ''}>
+                            Upgrade Lumber Mill
+                        </button>
+                        ${moneyCount < LUMBER_MILL_UPGRADE_COST ? '<p class="text-red-400 text-sm mt-2">Not enough money!</p>' : ''}
+                    </div>
+
+                    <!-- New Section: Sell Grape Lumber - only visible if lumberMillUpgraded is true -->
+                    <div class="bg-gray-800 p-6 rounded-lg shadow-md flex flex-col items-center gap-4 ${lumberMillUpgraded ? '' : 'hidden'}">
+                        <h3 class="text-2xl font-bold text-purple-300">Sell Grape Lumber</h3>
+                        <div class="flex items-center space-x-2">
+                            <label for="sellGrapeAmount" class="text-lg font-medium text-gray-100">Sell:</label>
+                            <input
+                                type="number"
+                                id="sellGrapeAmount"
+                                min="1"
+                                value="${sellGrapeWoodAmount}"
+                                class="w-24 p-2 border border-gray-600 rounded-md text-center text-lg font-semibold bg-gray-700 text-gray-100"
+                                ${isSelling || isSellingGrape ? 'disabled' : ''}
+                            />
+                            <span class="text-lg font-medium text-gray-100">Grape Lumber</span>
+                        </div>
+                        <p class="text-md text-gray-300">You will get: <span class="font-bold text-green-400" id="sellGrapeMoneyPreview">${sellGrapeWoodAmount * GRAPE_WOOD_TO_MONEY_RATE}</span> <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+
+                        <!-- Selling Grape Progress Bar -->
+                        <div id="sellingGrapeProgressBarContainer" class="progress-bar-container w-full max-w-xs ${isSellingGrape ? '' : 'hidden'}">
+                            <div id="sellingGrapeProgressBar" class="progress-bar progress-bar-purple" style="width: ${sellingGrapeProgress}%"></div>
+                        </div>
+                        <p id="sellingGrapeStatus" class="text-sm text-purple-400 ${isSellingGrape ? '' : 'hidden'}">Processing ${currentSellGrapeAmount} Grape Lumber...</p>
+
+                        <button id="sellGrapeWoodButton" class="px-8 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out
+                            ${grapeLumberCount >= sellGrapeWoodAmount && sellGrapeWoodAmount > 0 && !isSelling && !isSellingGrape ? 'bg-purple-500 hover:bg-purple-600' : 'bg-gray-600 cursor-not-allowed'}"
+                            ${grapeLumberCount < sellGrapeWoodAmount || sellGrapeWoodAmount <= 0 || isSelling || isSellingGrape ? 'disabled' : ''}>
+                            Exchange Grape Lumber
+                        </button>
+                        ${grapeLumberCount < sellGrapeWoodAmount && !isSelling && !isSellingGrape ? '<p class="text-red-400 text-sm mt-2">Not enough Grape Lumber!</p>' : ''}
+                    </div>
+                </div> <!-- End of grid container -->
+            `;
+
+            lumberMillDiv.querySelector('#sellAmount').addEventListener('input', (e) => {
+                sellWoodAmount = Math.max(1, parseInt(e.target.value) || 1);
+                renderApp(); // Re-render to update money preview and button state
+            });
+            lumberMillDiv.querySelector('#sellWoodButton').addEventListener('click', sellWood);
+
+            // Add event listener for the new upgrade button
+            const upgradeButton = lumberMillDiv.querySelector('#upgradeLumberMillButton');
+            if (upgradeButton) { // Ensure button exists before adding listener
+                upgradeButton.addEventListener('click', upgradeLumberMill);
+            }
+
+            // New: Event listeners for Grape Lumber selling (only if upgraded)
+            if (lumberMillUpgraded) {
+                lumberMillDiv.querySelector('#sellGrapeAmount').addEventListener('input', (e) => {
+                    sellGrapeWoodAmount = Math.max(1, parseInt(e.target.value) || 1);
+                    renderApp(); // Re-render to update money preview and button state
+                });
+                lumberMillDiv.querySelector('#sellGrapeWoodButton').addEventListener('click', sellGrapeWood);
+            }
+
+            return lumberMillDiv;
+        };
+
+        const renderAxeShopView = () => {
+            const axeShopDiv = document.createElement('div');
+            axeShopDiv.className = "w-full h-[400px] bg-gray-700 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-hidden";
+            // Removed fixed height to allow it to grow with content
+            axeShopDiv.style.height = 'auto';
+            axeShopDiv.innerHTML = `
+                <h2 class="text-3xl font-bold text-red-400 mb-6">Axe Shop</h2>
+                <p class="text-lg text-gray-300 mb-4">Upgrade your axe to cut trees faster!</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-2xl" id="axeItemsContainer">
+                    <!-- Axe items will be dynamically added here -->
+                </div>
+            `;
+
+            const axeItemsContainer = axeShopDiv.querySelector('#axeItemsContainer');
+            axeItems.forEach(axe => {
+                const axeCard = document.createElement('div');
+                axeCard.className = `bg-gray-800 p-4 rounded-lg shadow-md flex flex-col items-center border-2
+                    ${currentAxeId === axe.id ? 'border-blue-500 ring-4 ring-blue-200' : 'border-gray-600'}
+                    ${moneyCount < axe.moneyCost && !ownedAxes.includes(axe.id) ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg transition-shadow duration-200'}
+                `;
+                axeCard.innerHTML = `
+                    <img src="${axe.imageUrl}" alt="${axe.name}" class="w-20 h-20 mb-3 rounded-full object-contain" />
+                    <h3 class="text-xl font-semibold text-gray-100">${axe.name}</h3>
+                    <p class="text-sm text-gray-300">Cuts: ${axe.cutSpeedMultiplier}x faster</p>
+                    <p class="text-lg font-bold text-green-400 mt-2">Cost: ${axe.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                `;
+
+                const button = document.createElement('button');
+                button.className = `mt-4 px-6 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out`;
+
+                // Fix for InvalidCharacterError: Use spread operator for multiple classes
+                if (ownedAxes.includes(axe.id)) {
+                    button.textContent = currentAxeId === axe.id ? 'Equipped' : 'Equip';
+                    button.classList.add(...(currentAxeId === axe.id ? ['bg-blue-500', 'cursor-default'] : ['bg-blue-700', 'hover:bg-blue-600']));
+                    button.disabled = currentAxeId === axe.id;
+                    button.addEventListener('click', () => equipAxe(axe.id));
+                } else {
+                    button.textContent = 'Buy Axe';
+                    button.classList.add(...(moneyCount >= axe.moneyCost ? ['bg-red-500', 'hover:bg-red-600'] : ['bg-gray-600', 'cursor-not-allowed']));
+                    button.disabled = moneyCount < axe.moneyCost;
+                    button.addEventListener('click', () => buyAxe(axe.id));
+                }
+                axeCard.appendChild(button);
+                axeItemsContainer.appendChild(axeCard);
+            });
+
+            return axeShopDiv;
+        };
+
+        const renderHomeView = () => {
+            const homeContainer = document.createElement('div');
+            // Adjust class based on full view mode - removed full view logic
+            // Changed to flex-col to stack items vertically on all screen sizes
+            homeContainer.className = `w-full flex flex-col gap-6`;
+
+            // Home Controls Section (Furniture Shop, Change Home, Buy Houses)
+            const homeControlsDiv = document.createElement('div');
+            // Hide controls if in full view - removed full view logic
+            // Changed to w-full to occupy full width
+            homeControlsDiv.className = `w-full bg-gray-700 p-6 rounded-lg shadow-md`;
+            homeControlsDiv.innerHTML = `
+                <h2 class="text-2xl font-bold text-indigo-400 mb-4">Your Home</h2>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <button id="furnitureShopBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                        ${showFurnitureShop ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-600 hover:bg-gray-500'}">
+                        Shop
+                    </button>
+                    <button id="changeHomeBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                        ${homeSubView === 'changeHome' ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-500'}">
+                        Change Home
+                    </button>
+                    <button id="buyHousesBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                        ${homeSubView === 'buyHouses' ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-600 hover:bg-gray-500'}">
+                        Buy Houses
+                    </button>
+                    <button id="rearrangeFurnitureBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                        ${isRearrangingFurniture ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 hover:bg-gray-500'}">
+                        ${isRearrangingFurniture ? 'Cancel Re-Arrange' : 'Re-Arrange'}
+                    </button>
+                    <button id="deleteFurnitureBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                        ${isDeletingFurniture ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-500'}">
+                        ${isDeletingFurniture ? 'Cancel Delete' : 'Delete'}
+                    </button>
+                </div>
+                <div id="homeSubViewContent">
+                    <!-- Content for sub-views will be rendered here -->
+                </div>
+                <p id="deleteHint" class="mt-4 text-center text-sm text-red-400 ${isDeletingFurniture ? '' : 'hidden'}">
+                    Click on a furniture item in your house to delete it.
+                </p>
+            `;
+            homeContainer.appendChild(homeControlsDiv);
+
+            const homeSubViewContent = homeControlsDiv.querySelector('#homeSubViewContent');
+
+            // Event Listeners for sub-view buttons
+            homeControlsDiv.querySelector('#furnitureShopBtn').addEventListener('click', () => {
+                showFurnitureShop = !showFurnitureShop; // Toggle visibility
+                homeSubView = 'furnitureShop'; // Ensure this is the active sub-view
+                isRearrangingFurniture = false; // Exit rearrange mode when toggling shop
+                isDeletingFurniture = false; // Exit delete mode when toggling shop
+                selectedFurnitureToMoveId = null;
+                selectedFurnitureType = null;
+                renderApp();
+                saveGame();
+            });
+            homeControlsDiv.querySelector('#changeHomeBtn').addEventListener('click', () => {
+                homeSubView = 'changeHome';
+                showFurnitureShop = false; // Hide shop when changing to other sub-views
+                isRearrangingFurniture = false; // Exit rearrange mode when switching sub-views
+                isDeletingFurniture = false; // Exit delete mode when switching sub-views
+                selectedFurnitureToMoveId = null;
+                selectedFurnitureType = null;
+                renderApp();
+            });
+            homeControlsDiv.querySelector('#buyHousesBtn').addEventListener('click', () => {
+                homeSubView = 'buyHouses';
+                showFurnitureShop = false; // Hide shop when changing to other sub-views
+                isRearrangingFurniture = false; // Exit rearrange mode when switching sub-views
+                isDeletingFurniture = false; // Exit delete mode when switching sub-views
+                selectedFurnitureToMoveId = null;
+                selectedFurnitureType = null;
+                renderApp();
+            });
+
+            // Event listeners for Rearrange and Delete buttons (now in renderHomeView)
+            homeControlsDiv.querySelector('#rearrangeFurnitureBtn').addEventListener('click', () => {
+                isRearrangingFurniture = !isRearrangingFurniture;
+                isDeletingFurniture = false; // Exit delete mode
+                selectedFurnitureType = null;
+                selectedFurnitureToMoveId = null;
+                renderApp();
+                saveGame();
+            });
+
+            homeControlsDiv.querySelector('#deleteFurnitureBtn').addEventListener('click', () => {
+                isDeletingFurniture = !isDeletingFurniture;
+                isRearrangingFurniture = false; // Exit rearrange mode
+                selectedFurnitureType = null;
+                selectedFurnitureToMoveId = null;
+                renderApp();
+                saveGame();
+            });
+
+            // Render content based on homeSubView and showFurnitureShop
+            if (homeSubView === 'furnitureShop' && showFurnitureShop) {
+                homeSubViewContent.appendChild(renderFurnitureShopContent());
+            } else if (homeSubView === 'changeHome') {
+                homeSubViewContent.appendChild(renderChangeHomeContent());
+            } else if (homeSubView === 'buyHouses') {
+                homeSubViewContent.appendChild(renderBuyHousesContent());
+            }
+
+
+            // Your Home Area Section
+            const homeAreaDiv = document.createElement('div');
+            homeAreaDiv.id = 'homeArea'; // Used for event listeners
+            // Adjust class based on full view mode - removed full view logic
+            // Changed to w-full to occupy full width
+            homeAreaDiv.className = `w-full bg-black-900 rounded-lg shadow-inner p-4 relative home-grid min-h-[1200px]`;
+            // Removed inline style width and height
+            // homeAreaDiv.style.width = `${HOME_WIDTH}px`;
+            // homeAreaDiv.style.height = `${HOME_HEIGHT}px`;
+
+            // Set background image based on currentHouseId
+            const currentHouse = houseItems.find(house => house.id === currentHouseId);
+            if (currentHouse) {
+                homeAreaDiv.style.backgroundImage = `url('${currentHouse.imageUrl}')`;
+                console.log(`Home background set to: ${currentHouse.imageUrl} for house ID: ${currentHouseId}`); // Debugging log
+            } else {
+                console.warn(`Could not find house details for currentHouseId: ${currentHouseId}. No background image set.`);
+            }
+
+            homeAreaDiv.innerHTML += `
+                <h2 class="text-2xl font-bold text-amber-700 mb-4 text-center">
+                    ${currentHouse ? currentHouse.name : 'Unknown Home'}
+                </h2>
+                <!-- Removed Full View button -->
+            `;
+
+            // Removed event listener for the Full View button
+
+
+            // Get furniture for the current house
+            const currentHouseFurniture = allHousesFurniture[currentHouseId] || [];
+
+            // Add existing furniture for the current house
+            currentHouseFurniture.forEach(item => {
+                const itemDetails = furnitureItems.find(f => f.id === item.type);
+                if (itemDetails) {
+                    const furnitureElement = document.createElement('div');
+                    furnitureElement.className = `furniture-item ${selectedFurnitureToMoveId === item.id ? 'moving-selected' : ''} ${isDeletingFurniture ? 'deleting-active' : ''}`;
+                    furnitureElement.dataset.id = item.id; // Store unique ID for easy lookup
+                    furnitureElement.style.left = `${item.x}px`;
+                    furnitureElement.style.top = `${item.y}px`;
+                    furnitureElement.style.width = `${itemDetails.width}px`;
+                    furnitureElement.style.height = `${itemDetails.height}px`;
+                    furnitureElement.style.zIndex = 10;
+                    furnitureElement.style.transform = `rotate(${item.rotation || 0}deg)`;
+                    furnitureElement.innerHTML = `<img src="${itemDetails.imageUrl}" alt="${itemDetails.name}" />`;
+
+                    furnitureElement.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (isDeletingFurniture) {
+                            deleteFurniture(item.id);
+                        } else if (isRearrangingFurniture) {
+                            selectFurnitureToMove(item.id);
+                        } else {
+                            rotateFurniture(item.id);
+                        }
+                    });
+
+                    // Add right-click (contextmenu) event listener for chests
+                    if (item.type === 'chest') {
+                        furnitureElement.addEventListener('contextmenu', (e) => {
+                            e.preventDefault(); // Prevent default context menu
+                            if (!isRearrangingFurniture && !isDeletingFurniture) { // Only open if not in other modes
+                                openChestInventory(item.id);
+                            }
+                        });
+                    }
+
+                    homeAreaDiv.appendChild(furnitureElement);
+                }
+            });
+
+            homeAreaDiv.addEventListener('click', (e) => {
+                // Pass the actual width and height of the homeAreaDiv for accurate placement
+                const currentHomeWidth = homeAreaDiv.offsetWidth;
+                const currentHomeHeight = homeAreaDiv.offsetHeight;
+                if (selectedFurnitureType) {
+                    handleClickToPlace(e, currentHomeWidth, currentHomeHeight);
+                } else if (isRearrangingFurniture && selectedFurnitureToMoveId) {
+                    placeMovedFurniture(e, currentHomeWidth, currentHomeHeight);
+                }
+                // No action needed for clicks on homeAreaDiv if isDeletingFurniture is active,
+                // as furniture clicks are handled directly.
+            });
+
+            homeContainer.appendChild(homeAreaDiv);
+            return homeContainer;
+        };
+
+        const renderFurnitureShopContent = () => {
+            const contentDiv = document.createElement('div');
+            contentDiv.className = "flex flex-col gap-4";
+            contentDiv.innerHTML = `
+                <h3 class="text-xl font-bold text-gray-100 mb-4">Shop Items</h3>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <button id="furnitureCategoryBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                        ${currentFurnitureCategory === 'furniture' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-600 hover:bg-gray-500'}">
+                        Furniture
+                    </button>
+                    <button id="petsCategoryBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                        ${currentFurnitureCategory === 'pets' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-500'}">
+                        Pets
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-4" id="furnitureItemsContainer">
+                    <!-- Furniture or Pet items will be dynamically added here -->
+                </div>
+            `;
+            const furnitureItemsContainer = contentDiv.querySelector('#furnitureItemsContainer');
+
+            // Event listeners for category buttons
+            contentDiv.querySelector('#furnitureCategoryBtn').addEventListener('click', () => {
+                currentFurnitureCategory = 'furniture';
+                selectedFurnitureType = null; // Clear selected item when changing category
+                renderApp();
+            });
+            contentDiv.querySelector('#petsCategoryBtn').addEventListener('click', () => {
+                currentFurnitureCategory = 'pets';
+                selectedFurnitureType = null; // Clear selected item when changing category
+                renderApp();
+            });
+
+            // Filter items based on the current category
+            const itemsToDisplay = furnitureItems.filter(item => item.category === currentFurnitureCategory);
+
+            itemsToDisplay.forEach(item => {
+                const shopItem = document.createElement('div');
+                shopItem.className = `shop-item p-3 border rounded-lg flex flex-col items-center
+                    ${selectedFurnitureType === item.id ? 'selected bg-indigo-900' : 'bg-gray-800 hover:bg-gray-700'}
+                    ${moneyCount < item.moneyCost ? 'opacity-50 cursor-not-allowed' : ''}`;
+                shopItem.innerHTML = `
+                    <img src="${item.imageUrl}" alt="${item.name}" class="w-16 h-16 mb-2 rounded-md object-contain" />
+                    <span class="font-semibold text-sm text-gray-100 text-center">${item.name}</span>
+                    <span class="text-xs text-gray-300">Cost: ${item.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></span>
+                `;
+                shopItem.addEventListener('click', () => {
+                    if (!isRearrangingFurniture && !isDeletingFurniture) { // Only allow buying if not in rearrange or delete mode
+                        buyFurniture(item.id);
+                    }
+                });
+                furnitureItemsContainer.appendChild(shopItem);
+            });
+            return contentDiv;
+        };
+
+        const renderChangeHomeContent = () => {
+            const contentDiv = document.createElement('div');
+            contentDiv.className = "flex flex-col gap-4";
+            contentDiv.innerHTML = `
+                <h3 class="text-xl font-bold text-gray-100 mb-2">Your Owned Houses</h3>
+                <div id="ownedHousesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Owned houses will be dynamically added here -->
+                </div>
+            `;
+            const ownedHousesContainer = contentDiv.querySelector('#ownedHousesContainer');
+
+            if (ownedHouses.length === 0) {
+                ownedHousesContainer.innerHTML = `<p class="text-gray-400">You don't own any houses yet. Buy one from the "Buy Houses" section!</p>`;
+            } else {
+                ownedHouses.forEach(houseId => {
+                    const house = houseItems.find(h => h.id === houseId);
+                    if (house) {
+                        const houseCard = document.createElement('div');
+                        houseCard.className = `bg-gray-800 p-4 rounded-lg shadow-md flex flex-col items-center border-2
+                            ${currentHouseId === house.id ? 'border-blue-500 ring-4 ring-blue-200' : 'border-gray-600'}`;
+                        houseCard.innerHTML = `
+                            <img src="${house.imageUrl}" alt="${house.name}" class="w-24 h-18 mb-3 rounded-md object-contain" />
+                            <h4 class="text-lg font-semibold text-gray-100">${house.name}</h4>
+                            <button class="mt-3 px-6 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                                ${currentHouseId === house.id ? 'bg-blue-500 cursor-default' : 'bg-indigo-500 hover:bg-indigo-600'}"
+                                ${currentHouseId === house.id ? 'disabled' : ''}>
+                                ${currentHouseId === house.id ? 'Current Home' : 'Equip'}
+                            </button>
+                        `;
+                        const equipButton = houseCard.querySelector('button');
+                        equipButton.addEventListener('click', () => equipHome(house.id));
+                        ownedHousesContainer.appendChild(houseCard);
+                    }
+                });
+            }
+            return contentDiv;
+        };
+
+        const renderBuyHousesContent = () => {
+            const contentDiv = document.createElement('div');
+            contentDiv.className = "flex flex-col gap-4";
+            contentDiv.innerHTML = `
+                <h3 class="text-xl font-bold text-gray-100 mb-2">Houses for Sale</h3>
+                <div id="housesForSaleContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Houses for sale will be dynamically added here -->
+                </div>
+            `;
+            const housesForSaleContainer = contentDiv.querySelector('#housesForSaleContainer');
+
+            const purchasableHouses = houseItems.filter(house => !ownedHouses.includes(house.id));
+
+            if (purchasableHouses.length === 0) {
+                housesForSaleContainer.innerHTML = `<p class="text-gray-400">You own all available houses!</p>`;
+            } else {
+                purchasableHouses.forEach(house => {
+                    const houseCard = document.createElement('div');
+                    houseCard.className = `bg-gray-800 p-4 rounded-lg shadow-md flex flex-col items-center border-2 border-gray-600`;
+                    houseCard.innerHTML = `
+                        <img src="${house.imageUrl}" alt="${house.name}" class="w-24 h-18 mb-3 rounded-md object-contain" />
+                        <h4 class="text-lg font-semibold text-gray-100">${house.name}</h4>
+                        <p class="text-md font-bold text-green-400 mt-2">Cost: ${house.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                        <button class="mt-3 px-6 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                            ${moneyCount >= house.moneyCost ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-600 cursor-not-allowed'}"
+                            ${moneyCount < house.moneyCost ? 'disabled' : ''}>
+                            Buy
+                        </button>
+                    `;
+                    const buyButton = houseCard.querySelector('button');
+                    buyButton.addEventListener('click', () => buyHome(house.id));
+                    housesForSaleContainer.appendChild(houseCard);
+                });
+            }
+            return contentDiv;
+        };
+
+        const renderBiomesView = () => {
+            const biomesDiv = document.createElement('div');
+            biomesDiv.className = "w-full h-[400px] bg-gray-700 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-hidden";
+            biomesDiv.innerHTML = `
+                <h2 class="text-3xl font-bold text-purple-400 mb-6">Explore Biomes!</h2>
+                <p class="text-lg text-gray-300 mb-4">Select a biome to teleport to:</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl" id="biomesContainer">
+                    <!-- Biome items will be dynamically added here -->
+                </div>
+            `;
+
+            const biomesContainer = biomesDiv.querySelector('#biomesContainer');
+            // Iterate through biomesData to create buttons for each biome
+            for (const biomeId in biomesData) {
+                // Skip the current biome if you don't want to show it as an option to "teleport" to itself
+                if (biomeId === currentView) continue; 
+
+                const biome = biomesData[biomeId];
+                const biomeCard = document.createElement('div');
+                biomeCard.className = `bg-gray-800 p-4 rounded-lg shadow-md flex flex-col items-center border-2 border-gray-600`;
+                biomeCard.innerHTML = `
+                    <img src="${biome.iconUrl}" alt="${biome.name} Icon" class="w-16 h-16 mb-3 rounded-full object-contain" />
+                    <h3 class="text-xl font-semibold text-gray-100">${biome.name}</h3>
+                    <button class="mt-4 px-6 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out bg-blue-500 hover:bg-blue-600">
+                        Teleport
+                    </button>
+                `;
+                const teleportButton = biomeCard.querySelector('button');
+                teleportButton.addEventListener('click', () => {
+                    currentView = biomeId; // Change the current view to the selected biome
+                    lastLocation = biomeId; // Update lastLocation on teleport
+                    renderApp(); // Re-render the app to show the new biome
+                    saveGame(); // Save game state after teleporting
+                });
+                biomesContainer.appendChild(biomeCard);
+            }
+            return biomesDiv;
+        };
+
+
+        // --- Core Game Logic Functions ---
+        const chopTree = (treeId, event) => {
+            if (isCutting) {
+                console.log("Already cutting a tree!");
+                return;
+            }
+
+            // Get the trees array for the current biome
+            const currentBiomeTrees = biomesData[currentView]?.trees;
+            if (!currentBiomeTrees) {
+                console.error(`No tree data found for current biome: ${currentView}`);
+                return;
+            }
+
+            const treeToCut = currentBiomeTrees.find(tree => tree.id === treeId);
+            if (!treeToCut) return;
+
+            const currentAxe = axeItems.find(axe => axe.id === currentAxeId);
+            const effectiveCutTime = treeToCut.cutTime / currentAxe.cutSpeedMultiplier;
+
+            isCutting = true;
+            currentCuttingTreeId = treeId;
+            cuttingProgress = 0;
+            renderApp(); // Re-render to show progress bar and disable other trees
+
+            // Get a fresh reference to the tree element after renderApp()
+            const treeElement = document.getElementById(`tree-${treeId}`);
+            if (treeElement) {
+                treeElement.classList.add('animate-shake');
+            }
+
+            const intervalTime = 50;
+            const totalSteps = effectiveCutTime / intervalTime;
+            const progressPerStep = 100 / totalSteps;
+
+            cuttingIntervalRef = setInterval(() => {
+                cuttingProgress += progressPerStep;
+                // Get a fresh reference to the current tree's progress bar in each interval
+                // The tree element itself is the wrapper div, not just the image.
+                const currentTreeWrapperInInterval = document.getElementById(`tree-${currentCuttingTreeId}`).parentNode; // Get the parent wrapper
+                if (currentTreeWrapperInInterval) {
+                    const progressBar = currentTreeWrapperInInterval.querySelector('.progress-bar');
+                    if (progressBar) {
+                        progressBar.style.width = `${cuttingProgress}%`;
+                    }
+                }
+
+                if (cuttingProgress >= 100) {
+                    cuttingProgress = 100;
+                    clearInterval(cuttingIntervalRef);
+                    cuttingIntervalRef = null;
+
+                    // New: Check current biome to determine which currency to increment
+                    if (currentView === 'purpleForest') {
+                        grapeLumberCount++; // Increment grape lumber for purple trees
+                    } else {
+                        woodCount++; // Increment regular wood for green trees
+                    }
+                    
+                    isCutting = false;
+                    cuttingProgress = 0;
+                    currentCuttingTreeId = null;
+                    
+                    // Ensure the tree element is correctly referenced for removing shake class
+                    // And hide the progress bar container
+                    if (currentTreeWrapperInInterval) { // Use the wrapper reference
+                        const treeImage = currentTreeWrapperInInterval.querySelector('.tree-image');
+                        if (treeImage) {
+                            treeImage.classList.remove('animate-shake');
+                        }
+                        const progressBarContainer = currentTreeWrapperInInterval.querySelector('.progress-bar-container');
+                        if (progressBarContainer) {
+                            progressBarContainer.classList.add('hidden');
+                        }
+                    }
+                    renderApp(); // Full re-render to update wood count and ensure all states are consistent
+                    saveGame(); // Save game state after chopping a tree
+                }
+            }, intervalTime);
+        };
+
+        const buyFurniture = (furnitureId) => {
+            const item = furnitureItems.find(f => f.id === furnitureId);
+            if (item && moneyCount >= item.moneyCost) {
+                moneyCount -= item.moneyCost;
+                selectedFurnitureType = furnitureId;
+                isRearrangingFurniture = false; // Exit rearrange mode if buying new furniture
+                isDeletingFurniture = false; // Exit delete mode if buying new furniture
+                selectedFurnitureToMoveId = null; // Clear any picked up furniture
+                renderApp(); // Re-render to update money and show placement hint
+                saveGame(); // Save game state after buying furniture
+            } else if (item) {
+                console.log("Not enough money to buy " + item.name);
+                // In a real app, you'd show a message to the user
+            }
+        };
+
+        const buyAxe = (axeId) => {
+            const axeToBuy = axeItems.find(axe => axe.id === axeId);
+            if (!axeToBuy) return;
+
+            if (ownedAxes.includes(axeId)) {
+                console.log("You already own this axe!");
+                currentAxeId = axeId; // Equip if already owned
+                renderApp(); // Re-render to update equipped axe
+                saveGame(); // Save game state after equipping axe
+                return;
+            }
+
+            if (moneyCount >= axeToBuy.moneyCost) {
+                moneyCount -= axeToBuy.moneyCost;
+                ownedAxes.push(axeId);
+                currentAxeId = axeId; // Equip new axe automatically
+                console.log(`Bought and equipped ${axeToBuy.name}!`);
+                renderApp(); // Re-render to update money, owned axes, and equipped axe
+                saveGame(); // Save game state after buying axe
+            } else {
+                console.log("Not enough money to buy " + axeToBuy.name);
+            }
+        };
+
+        const equipAxe = (axeId) => {
+            if (ownedAxes.includes(axeId)) {
+                currentAxeId = axeId;
+                console.log(`Equipped ${axeItems.find(axe => axe.id === axeId)?.name}`);
+                renderApp(); // Re-render to update equipped axe
+                saveGame(); // Save game state after equipping axe
+            } else {
+                console.log("You don't own this axe.");
+            }
+        };
+
+        const sellWood = () => {
+            const amountToSell = parseInt(sellWoodAmount);
+            if (isNaN(amountToSell) || amountToSell <= 0) {
+                console.log("Please enter a valid amount to sell.");
+                return;
+            }
+            if (woodCount < amountToSell) {
+                console.log("Not enough wood to sell that amount.");
+                return;
+            }
+            if (isSelling || isSellingGrape) { // Disable if either selling process is active
+                console.log("Already processing a sale!");
+                return;
+            }
+
+            isSelling = true;
+            currentSellAmount = amountToSell;
+            sellingProgress = 0;
+            renderApp(); // Re-render to show progress bar and disable button
+
+            // Start selling sound
+            if (sellingSound && sellingSound.loaded) { // Ensure the sound is loaded before playing
+                sellingSound.start();
+            }
+
+
+            const totalSellTime = amountToSell * SELL_TIME_PER_WOOD_MS;
+            const intervalTime = 50;
+            const totalSteps = totalSellTime / intervalTime;
+            const progressPerStep = 100 / totalSteps;
+
+            sellingIntervalRef = setInterval(() => {
+                sellingProgress += progressPerStep;
+                const progressBar = document.getElementById('sellingProgressBar');
+                if (progressBar) {
+                    progressBar.style.width = `${sellingProgress}%`;
+                }
+
+                if (sellingProgress >= 100) {
+                    sellingProgress = 100;
+                    clearInterval(sellingIntervalRef);
+                    sellingIntervalRef = null;
+
+                    woodCount -= currentSellAmount;
+                    moneyCount += (currentSellAmount * WOOD_TO_MONEY_RATE);
+
+                    // Check for biomes unlock condition
+                    if (moneyCount >= 100 && !biomesUnlocked) {
+                        biomesUnlocked = true;
+                        console.log("Biomes unlocked!");
+                        // Optionally show a notification to the user
+                    }
+
+                    isSelling = false;
+                    sellingProgress = 0;
+                    currentSellAmount = 0; // Reset current sell amount
+
+                    // Stop selling sound
+                    if (sellingSound && sellingSound.state === 'started') { // Check if sound is playing
+                        sellingSound.stop();
+                    }
+
+                    console.log(`Sold ${amountToSell} wood for ${amountToSell * WOOD_TO_MONEY_RATE} money.`);
+                    renderApp(); // Full re-render to update counts and hide progress bar
+                    saveGame(); // Save game state after selling wood
+                }
+            }, intervalTime);
+        };
+
+        // New: Function to sell Grape Lumber
+        const sellGrapeWood = () => {
+            // Check if the lumber mill is upgraded before allowing grape lumber selling
+            if (!lumberMillUpgraded) {
+                console.log("Lumber Mill not upgraded. Cannot sell Grape Lumber.");
+                // Potentially add a UI message here
+                return;
+            }
+
+            const amountToSell = parseInt(sellGrapeWoodAmount);
+            if (isNaN(amountToSell) || amountToSell <= 0) {
+                console.log("Please enter a valid amount of Grape Lumber to sell.");
+                return;
+            }
+            if (grapeLumberCount < amountToSell) {
+                console.log("Not enough Grape Lumber to sell that amount.");
+                return;
+            }
+            if (isSelling || isSellingGrape) { // Disable if either selling process is active
+                console.log("Already processing a sale!");
+                return;
+            }
+
+            isSellingGrape = true;
+            currentSellGrapeAmount = amountToSell;
+            sellingGrapeProgress = 0;
+            renderApp(); // Re-render to show progress bar and disable button
+
+            // Start selling sound
+            if (sellingSound && sellingSound.loaded) {
+                sellingSound.start();
+            }
+
+            const totalSellTime = amountToSell * SELL_TIME_PER_GRAPE_WOOD_MS;
+            const intervalTime = 50;
+            const totalSteps = totalSellTime / intervalTime;
+            const progressPerStep = 100 / totalSteps;
+
+            sellingGrapeIntervalRef = setInterval(() => {
+                sellingGrapeProgress += progressPerStep;
+                const progressBar = document.getElementById('sellingGrapeProgressBar');
+                if (progressBar) {
+                    progressBar.style.width = `${sellingGrapeProgress}%`;
+                }
+
+                if (sellingGrapeProgress >= 100) {
+                    sellingGrapeProgress = 100;
+                    clearInterval(sellingGrapeIntervalRef);
+                    sellingGrapeIntervalRef = null;
+
+                    grapeLumberCount -= currentSellGrapeAmount;
+                    moneyCount += (currentSellGrapeAmount * GRAPE_WOOD_TO_MONEY_RATE);
+
+                    isSellingGrape = false;
+                    sellingGrapeProgress = 0;
+                    currentSellGrapeAmount = 0;
+
+                    // Stop selling sound
+                    if (sellingSound && sellingSound.state === 'started') {
+                        sellingSound.stop();
+                    }
+
+                    console.log(`Sold ${amountToSell} Grape Lumber for ${amountToSell * GRAPE_WOOD_TO_MONEY_RATE} money.`);
+                    renderApp(); // Full re-render to update counts and hide progress bar
+                    saveGame(); // Save game state after selling grape lumber
+                }
+            }, intervalTime);
+        };
+
+        // New: Function to upgrade the Lumber Mill
+        const upgradeLumberMill = () => {
+            if (moneyCount >= LUMBER_MILL_UPGRADE_COST) {
+                moneyCount -= LUMBER_MILL_UPGRADE_COST;
+                lumberMillUpgraded = true;
+                console.log("Lumber Mill upgraded! You can now sell Grape Lumber.");
+                renderApp(); // Re-render to update money and show grape lumber selling section
+                saveGame(); // Save game state after upgrade
+            } else {
+                console.log("Not enough money to upgrade the Lumber Mill.");
+                // In a real app, you'd show a message to the user
+            }
+        };
+
+
+        const handleClickToPlace = (e, homeWidth, homeHeight) => {
+            if (!selectedFurnitureType) return;
+
+            const homeAreaDiv = document.getElementById('homeArea');
+            if (!homeAreaDiv) return;
+
+            const homeRect = homeAreaDiv.getBoundingClientRect();
+            const itemDetails = furnitureItems.find(f => f.id === selectedFurnitureType);
+            if (!itemDetails) return;
+
+            // Calculate x and y to center the furniture on the click point
+            let x = e.clientX - homeRect.left - (itemDetails.width / 2);
+            let y = e.clientY - homeRect.top - (itemDetails.height / 2);
+
+            // Ensure furniture stays within bounds
+            x = Math.max(0, Math.min(x, homeWidth - itemDetails.width));
+            y = Math.max(0, Math.min(y, homeHeight - itemDetails.height));
+
+            // Add furniture to the current house's furniture array
+            if (!allHousesFurniture[currentHouseId]) {
+                allHousesFurniture[currentHouseId] = [];
+            }
+            const newFurniture = {
+                id: generateUniqueId(),
+                type: selectedFurnitureType,
+                x: x,
+                y: y,
+                rotation: 0 // Initialize rotation to 0
+            };
+
+            // Initialize inventory for chests
+            if (selectedFurnitureType === 'chest') {
+                newFurniture.inventory = { wood: 0, money: 0 }; // Keep wood:0 for compatibility, but UI will only show money
+            }
+
+            allHousesFurniture[currentHouseId].push(newFurniture);
+            selectedFurnitureType = null;
+            renderApp(); // Re-render to place furniture and hide hint
+            saveGame(); // Save game state after placing furniture
+        };
+
+        const rotateFurniture = (furnitureId) => {
+            // Find the furniture in the current house's furniture array
+            const currentHouseFurniture = allHousesFurniture[currentHouseId] || [];
+            const itemIndex = currentHouseFurniture.findIndex(item => item.id === furnitureId);
+            if (itemIndex > -1) {
+                // Increment rotation by 90 degrees, reset to 0 after 270 (360 becomes 0)
+                currentHouseFurniture[itemIndex].rotation = (currentHouseFurniture[itemIndex].rotation + 90) % 360;
+                renderApp(); // Re-render to apply new rotation
+                saveGame(); // Save game state after rotating furniture
+            }
+        };
+
+        const selectFurnitureToMove = (furnitureId) => {
+            // Find the furniture in the current house's furniture array
+            const currentHouseFurniture = allHousesFurniture[currentHouseId] || [];
+            // If the same furniture is clicked again, deselect it
+            if (selectedFurnitureToMoveId === furnitureId) {
+                selectedFurnitureToMoveId = null;
+            } else {
+                selectedFurnitureToMoveId = furnitureId;
+            }
+            renderApp(); // Re-render to update visual selection
+            saveGame(); // Save game state after selecting furniture to move
+        };
+
+        const placeMovedFurniture = (e, homeWidth, homeHeight) => {
+            if (!selectedFurnitureToMoveId) return;
+
+            const homeAreaDiv = document.getElementById('homeArea');
+            if (!homeAreaDiv) return;
+
+            const homeRect = homeAreaDiv.getBoundingClientRect();
+            // Find the furniture in the current house's furniture array
+            const currentHouseFurniture = allHousesFurniture[currentHouseId] || [];
+            const itemIndex = currentHouseFurniture.findIndex(item => item.id === selectedFurnitureToMoveId);
+            if (itemIndex > -1) {
+                const itemDetails = furnitureItems.find(f => f.id === currentHouseFurniture[itemIndex].type);
+                if (!itemDetails) return;
+
+                // Calculate new position, centering the furniture on the click
+                let x = e.clientX - homeRect.left - (itemDetails.width / 2);
+                let y = e.clientY - homeRect.top - (itemDetails.height / 2);
+
+                // Ensure furniture stays within bounds
+                x = Math.max(0, Math.min(x, homeWidth - itemDetails.width));
+                y = Math.max(0, Math.min(y, homeHeight - itemDetails.height));
+
+                currentHouseFurniture[itemIndex].x = x;
+                currentHouseFurniture[itemIndex].y = y;
+            }
+
+            selectedFurnitureToMoveId = null; // Clear selected furniture
+            isRearrangingFurniture = false; // Exit rearrange mode
+            renderApp(); // Re-render to update furniture position and mode
+            saveGame(); // Save game state after moving furniture
+        };
+
+        const deleteFurniture = (furnitureId) => {
+            // Find the furniture in the current house's furniture array
+            let currentHouseFurniture = allHousesFurniture[currentHouseId] || [];
+            const initialLength = currentHouseFurniture.length;
+            // Filter out the furniture to be deleted
+            allHousesFurniture[currentHouseId] = currentHouseFurniture.filter(item => item.id !== furnitureId);
+
+            if (allHousesFurniture[currentHouseId].length < initialLength) {
+                console.log(`Deleted furniture item with ID: ${furnitureId}`);
+                renderApp(); // Re-render to remove the furniture visually
+                saveGame(); // Save game state after deleting furniture
+            } else {
+                console.log(`Furniture item with ID: ${furnitureId} not found.`);
+            }
+        };
+
+        const equipHome = (houseId) => {
+            if (ownedHouses.includes(houseId)) {
+                currentHouseId = houseId;
+                console.log(`Equipped ${houseItems.find(h => h.id === houseId)?.name}`);
+                // Ensure the furniture array for the new house exists
+                if (!allHousesFurniture[currentHouseId]) {
+                    allHousesFurniture[currentHouseId] = [];
+                }
+                renderApp(); // Re-render to update current house and its furniture
+                saveGame(); // Save game state after equipping a new home
+            } else {
+                console.log("You don't own this house.");
+            }
+        };
+
+        const buyHome = (houseId) => {
+            const houseToBuy = houseItems.find(house => house.id === houseId);
+            if (!houseToBuy) return;
+
+            if (ownedHouses.includes(houseId)) {
+                console.log("You already own this house!");
+                return;
+            }
+
+            if (moneyCount >= houseToBuy.moneyCost) {
+                moneyCount -= houseToBuy.moneyCost;
+                ownedHouses.push(houseId);
+                // Initialize an empty furniture array for the new house
+                allHousesFurniture[houseId] = [];
+                currentHouseId = houseId; // Automatically equip new house
+                console.log(`Bought and equipped ${houseToBuy.name}!`);
+                renderApp(); // Re-render to update money, owned houses, and equipped house
+                saveGame(); // Save game state after buying a house
+            } else {
+                console.log("Not enough money to buy " + houseToBuy.name);
+            }
+        };
+
+        // --- Chest Inventory Functions ---
+        let currentOpenChestId = null; // Track which chest's inventory is open
+
+        const openChestInventory = (chestId) => {
+            const currentHouseFurniture = allHousesFurniture[currentHouseId];
+            const chest = currentHouseFurniture.find(item => item.id === chestId && item.type === 'chest');
+
+            if (!chest) {
+                console.error("Chest not found or not a chest type:", chestId);
+                return;
+            }
+
+            currentOpenChestId = chestId;
+
+            const appRoot = getAppRoot();
+            const modalOverlay = document.createElement('div');
+            modalOverlay.id = 'chestInventoryModal';
+            modalOverlay.className = 'modal-overlay';
+            modalOverlay.innerHTML = `
+                <div class="modal-content">
+                    <button class="modal-close-button" id="closeChestModal">&times;</button>
+                    <h3 class="text-2xl font-bold text-gray-100 mb-4 text-center">Chest Inventory</h3>
+                    <div class="flex flex-col gap-4">
+                        <!-- Money Section -->
+                        <div class="bg-gray-700 p-4 rounded-lg flex flex-col items-center">
+                            <h4 class="text-xl font-semibold text-gray-100 mb-2">Money</h4>
+                            <p class="text-lg text-gray-300 mb-2">In Chest: <span id="chestMoneyCount">${chest.inventory.money}</span> <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                            <div class="flex items-center gap-2 mb-2">
+                                <input type="number" id="moneyAmount" min="1" value="1" class="w-24 p-2 border border-gray-600 rounded-md text-center text-lg font-semibold bg-gray-600 text-gray-100" />
+                                <button id="depositMoneyBtn" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-md text-white font-semibold">Deposit</button>
+                                <button id="withdrawMoneyBtn" class="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-md text-white font-semibold">Withdraw</button>
+                            </div>
+                            <p class="text-sm text-gray-400">Your Money: ${moneyCount} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            appRoot.appendChild(modalOverlay);
+
+            // Add event listeners for modal buttons
+            modalOverlay.querySelector('#closeChestModal').addEventListener('click', closeChestInventory);
+
+            modalOverlay.querySelector('#depositMoneyBtn').addEventListener('click', () => {
+                const amount = parseInt(modalOverlay.querySelector('#moneyAmount').value);
+                depositToChest(chestId, 'money', amount);
+            });
+            modalOverlay.querySelector('#withdrawMoneyBtn').addEventListener('click', () => {
+                const amount = parseInt(modalOverlay.querySelector('#moneyAmount').value);
+                withdrawFromChest(chestId, 'money', amount);
+            });
+        };
+
+        const closeChestInventory = () => {
+            const modal = document.getElementById('chestInventoryModal');
+            if (modal) {
+                modal.remove();
+                currentOpenChestId = null;
+            }
+            renderApp(); // Re-render to ensure main UI is updated if any counts changed
+        };
+
+        const updateChestInventoryDisplay = (chestId) => {
+            const chest = allHousesFurniture[currentHouseId].find(item => item.id === chestId);
+            if (chest && document.getElementById('chestInventoryModal')) {
+                // document.getElementById('chestWoodCount').textContent = chest.inventory.wood; // Removed
+                document.getElementById('chestMoneyCount').textContent = chest.inventory.money;
+                // Also update player's currency display within the modal
+                const modal = document.getElementById('chestInventoryModal');
+                // modal.querySelector('.bg-gray-700:nth-child(1) .text-sm').innerHTML = `Your Lumber: ${woodCount} <img src="${woodIconUrl}" alt="Wood Icon" class="currency-icon inline-block" />`; // Removed
+                modal.querySelector('.bg-gray-700:nth-child(1) .text-sm').innerHTML = `Your Money: ${moneyCount} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" />`;
+            }
+        };
+
+        const depositToChest = (chestId, itemType, amount) => {
+            if (isNaN(amount) || amount <= 0) return;
+
+            const chest = allHousesFurniture[currentHouseId].find(item => item.id === chestId);
+            if (!chest) return;
+
+            // Removed wood deposit logic
+            if (itemType === 'money') {
+                if (moneyCount >= amount) {
+                    moneyCount -= amount;
+                    chest.inventory.money += amount;
+                    console.log(`Deposited ${amount} money to chest ${chestId}.`);
+                } else {
+                    console.log("Not enough money to deposit.");
+                }
+            }
+            updateCurrencyDisplay(); // Update global currency display
+            updateChestInventoryDisplay(chestId); // Update modal display
+            saveGame();
+        };
+
+        const withdrawFromChest = (chestId, itemType, amount) => {
+            if (isNaN(amount) || amount <= 0) return;
+
+            const chest = allHousesFurniture[currentHouseId].find(item => item.id === chestId);
+            if (!chest) return;
+
+            // Removed wood withdraw logic
+            if (itemType === 'money') {
+                if (chest.inventory.money >= amount) {
+                    chest.inventory.money -= amount;
+                    moneyCount += amount;
+                    console.log(`Withdrew ${amount} money from chest ${chestId}.`);
+                } else {
+                    console.log("Not enough money in chest to withdraw.");
+                }
+            }
+            updateCurrencyDisplay(); // Update global currency display
+            updateChestInventoryDisplay(chestId); // Update modal display
+            saveGame();
+        };
+
+
+        // --- Save/Load Game Functions ---
+        const saveGame = () => {
+            const gameState = {
+                woodCount: woodCount,
+                moneyCount: moneyCount,
+                grapeLumberCount: grapeLumberCount, // New: Save grape lumber count
+                currentAxeId: currentAxeId,
+                ownedAxes: ownedAxes,
+                currentHouseId: currentHouseId, // Save current house
+                ownedHouses: ownedHouses,     // Save owned houses
+                allHousesFurniture: allHousesFurniture, // Save all furniture for all houses
+                currentFurnitureCategory: currentFurnitureCategory, // Save the current furniture category
+                showFurnitureShop: showFurnitureShop, // Save the visibility state of the furniture shop
+                biomesUnlocked: biomesUnlocked, // Save biomes unlocked state
+                lumberMillUpgraded: lumberMillUpgraded, // Save lumber mill upgrade state
+                lastLocation: currentView // Save the current view as the last location
+                // Do not save isSelling, sellingProgress, etc. as they are transient states
+            };
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
+                console.log("Game saved successfully!");
+            }
+            catch (e) {
+                console.error("Error saving game to local storage:", e);
+            }
+        };
+
+        const loadGame = () => {
+            try {
+                const savedState = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (savedState) {
+                    const gameState = JSON.parse(savedState);
+                    woodCount = gameState.woodCount || 0;
+                    moneyCount = gameState.moneyCount || 0;
+                    grapeLumberCount = gameState.grapeLumberCount || 0; // New: Load grape lumber count
+                    currentAxeId = gameState.currentAxeId || 'basic_axe';
+                    ownedAxes = gameState.ownedAxes || ['basic_axe'];
+                    currentHouseId = gameState.currentHouseId || 'basic_home';
+                    ownedHouses = gameState.ownedHouses || ['basic_home'];
+                    // When loading furniture, ensure chest inventories are initialized if missing (for old saves)
+                    allHousesFurniture = gameState.allHousesFurniture || { 'basic_home': [] };
+                    for (const houseId in allHousesFurniture) {
+                        allHousesFurniture[houseId].forEach(item => {
+                            if (item.type === 'chest' && !item.inventory) {
+                                item.inventory = { wood: 0, money: 0 };
+                            }
+                        });
+                    }
+
+                    currentFurnitureCategory = gameState.currentFurnitureCategory || 'furniture'; // Load current furniture category
+                    showFurnitureShop = gameState.showFurnitureShop !== undefined ? gameState.showFurnitureShop : false; // Load showFurnitureShop state
+                    biomesUnlocked = gameState.biomesUnlocked !== undefined ? gameState.biomesUnlocked : false; // Load biomes unlocked state
+                    lumberMillUpgraded = gameState.lumberMillUpgraded !== undefined ? gameState.lumberMillUpgraded : false; // Load lumber mill upgrade state
+                    lastLocation = gameState.lastLocation || 'forest'; // Load last visited location
+                    currentView = lastLocation; // Set current view to last visited location
+
+                    // Ensure basic_home is always in allHousesFurniture if it's owned
+                    if (ownedHouses.includes('basic_home') && !allHousesFurniture['basic_home']) {
+                        allHousesFurniture['basic_home'] = [];
+                    }
+
+                    console.log("Game loaded successfully!");
+                } else {
+                    console.log("No saved game found.");
+                    // Initialize default furniture for basic_home if no save exists
+                    allHousesFurniture = { 'basic_home': [] };
+                }
+            } catch (e) {
+                console.error("Error loading game from local storage:", e);
+                // Optionally reset game state if loading fails
+                woodCount = 0;
+                moneyCount = 0;
+                grapeLumberCount = 0; // New: Reset grape lumber count
+                currentAxeId = 'basic_axe';
+                ownedAxes = ['basic_axe'];
+                currentHouseId = 'basic_home';
+                ownedHouses = ['basic_home'];
+                allHousesFurniture = { 'basic_home': [] }; // Reset furniture for basic home
+                currentFurnitureCategory = 'furniture'; // Reset furniture category
+                showFurnitureShop = false; // Reset showFurnitureShop
+                biomesUnlocked = false; // Reset biomes unlocked state
+                lumberMillUpgraded = false; // Reset lumber mill upgrade state
+                lastLocation = 'forest'; // Reset last location
+                currentView = 'forest'; // Reset current view
+            }
+            // Reset any active processes on load to prevent inconsistencies
+            isSelling = false;
+            sellingProgress = 0;
+            currentSellAmount = 0;
+            clearInterval(sellingIntervalRef);
+            sellingIntervalRef = null;
+            // Stop selling sound if it was playing
+            if (sellingSound && sellingSound.state === 'started') {
+                sellingSound.stop();
+            }
+
+            // New: Reset grape lumber selling states
+            isSellingGrape = false;
+            sellingGrapeProgress = 0;
+            currentSellGrapeAmount = 0;
+            clearInterval(sellingGrapeIntervalRef);
+            sellingGrapeIntervalRef = null;
+            
+            isCutting = false;
+            cuttingProgress = 0;
+            currentCuttingTreeId = null;
+            clearInterval(cuttingIntervalRef);
+            cuttingIntervalRef = null;
+            
+            // Reset furniture modes
+            isRearrangingFurniture = false;
+            isDeletingFurniture = false;
+            selectedFurnitureToMoveId = null;
+            selectedFurnitureType = null;
+        };
+
+        // --- Main Render Function ---
+        const renderApp = () => {
+            const appRoot = getAppRoot();
+            if (!appRoot) return;
+
+            // Clear existing content
+            appRoot.innerHTML = '';
+
+            // Normal view: render all standard elements
+            appRoot.classList.remove('w-full', 'max-w-full', 'p-0', 'm-0', 'rounded-none', 'shadow-none', 'min-h-screen');
+            appRoot.style.alignItems = 'center'; // Revert alignment
+
+            // Header
+            const header = document.createElement('h1');
+            header.className = "text-4xl font-bold text-green-400 mb-6";
+            header.textContent = "Lumber Tycoon";
+            appRoot.appendChild(header);
+
+            // Currency Display
+            const currencyDisplay = document.createElement('div');
+            currencyDisplay.className = "flex justify-center space-x-8 mb-6";
+            currencyDisplay.innerHTML = `
+                <div class="text-2xl font-semibold p-4 bg-yellow-900 rounded-lg shadow-md flex items-center">
+                    <img src="${woodIconUrl}" alt="Wood Icon" class="currency-icon" /> Lumber: <span class="text-yellow-400" id="woodCount">${woodCount}</span>
+                </div>
+                <div class="text-2xl font-semibold p-4 bg-green-900 rounded-lg shadow-md flex items-center">
+                    <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon" /> Cash: <span class="text-green-400" id="moneyCount">${moneyCount}</span>
+                </div>
+                <!-- New: Grape Lumber Display - hidden by default, shown if grapeLumberCount > 0 or lumberMillUpgraded -->
+                <div class="text-2xl font-semibold p-4 bg-purple-900 rounded-lg shadow-md flex items-center ${grapeLumberCount > 0 || lumberMillUpgraded ? 'flex' : 'hidden'}">
+                    <img src="${grapeLumberIconUrl}" alt="Grape Lumber Icon" class="currency-icon" /> Grape Lumber: <span class="text-purple-400" id="grapeLumberCount">${grapeLumberCount}</span>
+                </div>
+            `;
+            appRoot.appendChild(currencyDisplay);
+
+            // Current Axe Display
+            const currentAxeDisplayDiv = document.createElement('div');
+            currentAxeDisplayDiv.id = 'currentAxeDisplay';
+            currentAxeDisplayDiv.className = "text-lg font-semibold mb-6 p-3 bg-blue-900 rounded-lg shadow-md flex items-center space-x-2";
+            appRoot.appendChild(currentAxeDisplayDiv);
+            updateAxeDisplay(); // Call to populate axe display
+
+            // Navigation Buttons
+            appRoot.appendChild(setupNavigation());
+
+            // Render current view
+            switch (currentView) {
+                case 'forest':
+                    appRoot.appendChild(renderTreeChoppingView('forest'));
+                    break;
+                case 'lumberMill':
+                    appRoot.appendChild(renderLumberMillView());
+                    break;
+                case 'axeShop':
+                    appRoot.appendChild(renderAxeShopView());
+                    break;
+                case 'home':
+                    appRoot.appendChild(renderHomeView());
+                    break;
+                case 'biomes':
+                    appRoot.appendChild(renderBiomesView());
+                    break;
+                case 'purpleForest': // New case for the purple forest biome
+                    appRoot.appendChild(renderTreeChoppingView('purpleForest'));
+                    break;
+                default:
+                    appRoot.appendChild(renderTreeChoppingView('forest'));
+            }
+        };
+
+        // --- Initialization ---
+        window.onload = () => {
+            setupAudio(); // Initialize audio
+            loadGame(); // Load game state before initial render
+            renderApp(); // Initial render with loaded or default state
+        };
+
+        // Save game state before the user leaves or refreshes the page
+        window.addEventListener('beforeunload', saveGame);
+    </script>
+</body>
+</html>
