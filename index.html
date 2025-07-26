@@ -1728,7 +1728,7 @@
                         break;
                     case 'debugchangelog': // New debug command to display changelog
                         addDebugLog("--- Fetching Changelog ---");
-                        fetch('changelog.txt') // Path to the changelog file
+                        fetch('assets/changelog.txt') // Path to the changelog file
                             .then(response => {
                                 if (!response.ok) {
                                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -1746,6 +1746,11 @@
                                 addDebugLog(`Failed to load changelog.txt: ${error.message}`);
                                 showMessage("Failed to load changelog.txt. See debug console for details.", 'error');
                             });
+                        break;
+                    case 'debugdownload': // New debug command to open a new tab with a link
+                        addDebugLog("Opening download link: https://github.com/StadiaStudios/lumbertycoon");
+                        window.open('https://github.com/StadiaStudios/lumbertycoon', '_blank');
+                        showMessage("Opening Windows download in a new tab!", 'info');
                         break;
                     default:
                         addDebugLog(`Unknown command: "${command}"`);
