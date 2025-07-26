@@ -792,9 +792,12 @@
                         <div class="flex items-center space-x-2">
                             <label for="sellAmount" class="text-lg font-medium text-gray-100">Sell:</label>
                             <input
-                                type="number"
+                                type="text"
+                                pattern="[0-9]*"
+                                inputmode="numeric"
                                 id="sellAmount"
                                 min="0"
+                                max="${woodCount}"
                                 value="${sellWoodAmount}"
                                 class="w-24 p-2 border border-gray-600 rounded-md text-center text-lg font-semibold bg-gray-700 text-gray-100"
                                 ${isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}
@@ -835,9 +838,12 @@
                         <div class="flex items-center space-x-2">
                             <label for="sellGrapeAmount" class="text-lg font-medium text-gray-100">Sell:</label>
                             <input
-                                type="number"
+                                type="text"
+                                pattern="[0-9]*"
+                                inputmode="numeric"
                                 id="sellGrapeAmount"
                                 min="0"
+                                max="${grapeLumberCount}"
                                 value="${sellGrapeWoodAmount}"
                                 class="w-24 p-2 border border-gray-600 rounded-md text-center text-lg font-semibold bg-gray-700 text-gray-100"
                                 ${isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}
