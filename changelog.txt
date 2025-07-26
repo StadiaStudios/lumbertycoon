@@ -1,6 +1,9 @@
 DLCs
 - Demonics
 
+V1.8.3- - -
+Moves Debug to Settings Page. Settings displays Version. Fixes mobile users can open chests.
+
 V1.7.2- - -
 Shops are now moved to a Shops section to save navbar space. Custom Loading screen.
 Background Music. Cash Spend, & Button click sfx.

@@ -19,3 +19,6 @@ other cheats are in the cheats.txt file.
 - 3. debugremove 100 | Remove Cash can change custom amount
 - 4. debugchangelog | Displays Changelog, Only works in browser version
 - 5. debugdownload | Takes you to github page to Download/Updates
+
+Downloading the game and playing through index doesnt seem to have working audio because most
+browsers block audio. But the background music will play just no sfx

@@ -343,6 +343,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
 
     <script type="module">
+        // Game version constant
+        const GAME_VERSION = "1.8.3";
+
         // Game state variables
         let woodCount = 0;
         let moneyCount = 0;
@@ -429,6 +432,16 @@
         // Tone.js Players for sound effects
         let clickSound;
         let purchaseSound;
+
+        // Constants for touch-hold functionality
+        const HOLD_DURATION = 700; // milliseconds
+        const TOUCH_MOVE_THRESHOLD = 10; // pixels
+
+        // Variables to track touch state for hold gesture
+        let touchStartTimer = null;
+        let touchStartX = 0;
+        let touchStartY = 0;
+
 
         // Function to initialize Tone.js and load sounds
         const setupAudio = async () => {
@@ -658,7 +671,7 @@
         const inventoryIconUrl = 'assets/nav/backpack.png'; // New icon for inventory
         const debugIconUrl = 'assets/nav/debug.png'; // Simple debug icon
         const shopsIconUrl = 'assets/nav/shops.png'; // New icon for shops
-        // Removed settingsIconUrl
+        const settingsIconUrl = 'assets/nav/settings.png'; // New icon for settings
 
 
         // --- UI Update Functions ---
@@ -820,10 +833,8 @@
             // New Inventory Button
             navContainer.appendChild(createNavButton('inventory', 'Inventory', inventoryIconUrl, 'bg-stone-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
 
-            // New Debug Button
-            navContainer.appendChild(createNavButton('debug', 'Debug', debugIconUrl, 'bg-pink-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
-
-            // Removed Settings Button: navContainer.appendChild(createNavButton('settings', 'Settings', settingsIconUrl, 'bg-blue-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
+            // New Settings Button (replaces Debug in navbar)
+            navContainer.appendChild(createNavButton('settings', 'Settings', settingsIconUrl, 'bg-blue-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
 
             return navContainer;
         };
@@ -1481,6 +1492,46 @@
                                 openChestInventory(item.id);
                             }
                         });
+
+                        // New: Add touch-hold event listeners for mobile devices
+                        let touchStartTime = 0;
+                        furnitureElement.addEventListener('touchstart', (e) => {
+                            // Only activate if not in rearrange or delete mode
+                            if (!isRearrangingFurniture && !isDeletingFurniture) {
+                                e.stopPropagation(); // Prevent other touch events from firing
+                                touchStartTime = new Date().getTime();
+                                touchStartX = e.touches[0].clientX;
+                                touchStartY = e.touches[0].clientY;
+
+                                touchStartTimer = setTimeout(() => {
+                                    openChestInventory(item.id);
+                                    touchStartTimer = null; // Clear timer after execution
+                                }, HOLD_DURATION);
+                            }
+                        }, { passive: false }); // Use passive: false to allow preventDefault
+
+                        furnitureElement.addEventListener('touchend', (e) => {
+                            if (touchStartTimer) {
+                                clearTimeout(touchStartTimer);
+                                touchStartTimer = null;
+                            }
+                        });
+
+                        furnitureElement.addEventListener('touchmove', (e) => {
+                            if (touchStartTimer) {
+                                const currentX = e.touches[0].clientX;
+                                const currentY = e.touches[0].clientY;
+                                const distance = Math.sqrt(
+                                    Math.pow(currentX - touchStartX, 2) +
+                                    Math.pow(currentY - touchStartY, 2)
+                                );
+
+                                if (distance > TOUCH_MOVE_THRESHOLD) {
+                                    clearTimeout(touchStartTimer);
+                                    touchStartTimer = null;
+                                }
+                            }
+                        });
                     }
 
                     homeAreaDiv.appendChild(furnitureElement);
@@ -1811,7 +1862,32 @@
             return debugDiv;
         };
 
-        // Removed renderSettingsView function
+        // New: renderSettingsView function
+        const renderSettingsView = () => {
+            const settingsDiv = document.createElement('div');
+            settingsDiv.className = "w-full bg-stone-800 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-auto";
+            settingsDiv.style.height = 'auto';
+            settingsDiv.innerHTML = `
+                <h2 class="text-3xl font-bold text-blue-400 mb-6">Settings</h2>
+                <div class="w-full max-w-md flex flex-col gap-4">
+                    <div class="bg-stone-900 p-4 rounded-lg shadow-md text-center">
+                        <p class="text-lg font-semibold text-stone-100">Game Version: ${GAME_VERSION}</p>
+                    </div>
+                    <button id="goToDebugBtn" class="px-8 py-4 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out bg-pink-600 hover:bg-pink-700 flex items-center justify-center">
+                        <img src="${debugIconUrl}" alt="Debug Icon" class="nav-icon mr-2" />Debug Console
+                    </button>
+                </div>
+            `;
+
+            settingsDiv.querySelector('#goToDebugBtn').addEventListener('click', () => {
+                currentView = 'debug';
+                renderApp();
+                saveGame();
+            });
+
+            return settingsDiv;
+        };
+
 
         // Function to add a log to the debug console and update the display
         const addDebugLog = (message) => {
@@ -3241,7 +3317,9 @@
                 case 'debug': // New case for debug view
                     appRoot.appendChild(renderDebugView());
                     break;
-                // Removed settings case: case 'settings': appRoot.appendChild(renderSettingsView()); break;
+                case 'settings': // New case for settings view
+                    appRoot.appendChild(renderSettingsView());
+                    break;
                 default:
                     appRoot.appendChild(renderTreeChoppingView('forest'));
             }
