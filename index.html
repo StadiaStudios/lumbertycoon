@@ -309,6 +309,37 @@
         let sellingSound; 
         let deliverySound; // New: Sound for deliveries
 
+        // New: Global message box element
+        let messageBox = null;
+
+        // Function to show temporary messages
+        const showMessage = (message, type = 'info', duration = 3000) => {
+            if (!messageBox) {
+                messageBox = document.createElement('div');
+                messageBox.id = 'globalMessageBox';
+                messageBox.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 p-4 rounded-lg shadow-lg text-white z-[9999] transition-opacity duration-300 opacity-0';
+                document.body.appendChild(messageBox);
+            }
+
+            messageBox.textContent = message;
+            messageBox.classList.remove('bg-green-500', 'bg-red-500', 'bg-blue-500'); // Clear previous types
+            if (type === 'success') {
+                messageBox.classList.add('bg-green-500');
+            } else if (type === 'error') {
+                messageBox.classList.add('bg-red-500');
+            } else {
+                messageBox.classList.add('bg-blue-500');
+            }
+
+            messageBox.classList.remove('opacity-0');
+            messageBox.classList.add('opacity-100');
+
+            setTimeout(() => {
+                messageBox.classList.remove('opacity-100');
+                messageBox.classList.add('opacity-0');
+            }, duration);
+        };
+
         // Function to initialize Tone.js and create the sounds
         const setupAudio = async () => {
             // Start Tone.js audio context on user interaction
@@ -743,16 +774,14 @@
             // Changed align-items to flex-start and added overflow-auto
             lumberMillDiv.className = "w-full h-[540px] bg-gray-700 rounded-lg shadow-inner p-8 flex flex-col items-start relative overflow-auto";
 
-            // Ensure sell amounts are valid based on current wood/grape lumber
-            if (woodCount < sellWoodAmount) {
+            // Initialize sell amounts for display, but don't cap them here
+            // These variables will store the *last valid entered amount* or a default.
+            if (sellWoodAmount === 0 && woodCount > 0) {
                 sellWoodAmount = 1;
             }
-            if (grapeLumberCount < sellGrapeWoodAmount) {
+            if (sellGrapeWoodAmount === 0 && grapeLumberCount > 0) {
                 sellGrapeWoodAmount = 1;
             }
-
-            // Diagnostic log to check the state of selling/delivery flags
-            console.log(`LumberMill Render: isSelling=${isSelling}, isSellingGrape=${isSellingGrape}, isDelivering=${isDelivering}`);
 
             lumberMillDiv.innerHTML = `
                 <h2 class="text-3xl font-bold text-gray-200 mb-6">Welcome to the Lumber Mill!</h2>
@@ -765,7 +794,7 @@
                             <input
                                 type="number"
                                 id="sellAmount"
-                                min="1"
+                                min="0"
                                 value="${sellWoodAmount}"
                                 class="w-24 p-2 border border-gray-600 rounded-md text-center text-lg font-semibold bg-gray-700 text-gray-100"
                                 ${isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}
@@ -781,11 +810,10 @@
                         <p id="sellingStatus" class="text-sm text-blue-400 ${isSelling ? '' : 'hidden'}">Processing ${currentSellAmount} wood...</p>
 
                         <button id="sellWoodButton" class="px-8 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out
-                            ${woodCount >= sellWoodAmount && sellWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-600 cursor-not-allowed'}"
-                            ${woodCount < sellWoodAmount || sellWoodAmount <= 0 || isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}>
+                            ${sellWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-600 cursor-not-allowed'}"
+                            ${sellWoodAmount <= 0 || isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}>
                             Exchange Lumber
                         </button>
-                        ${woodCount < sellWoodAmount && !isSelling && !isSellingGrape && !isDelivering ? '<p class="text-red-400 text-sm mt-2">Not enough wood!</p>' : ''}
                     </div>
 
                     <!-- Upgrade Lumber Mill Section -->
@@ -809,7 +837,7 @@
                             <input
                                 type="number"
                                 id="sellGrapeAmount"
-                                min="1"
+                                min="0"
                                 value="${sellGrapeWoodAmount}"
                                 class="w-24 p-2 border border-gray-600 rounded-md text-center text-lg font-semibold bg-gray-700 text-gray-100"
                                 ${isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}
@@ -825,19 +853,45 @@
                         <p id="sellingGrapeStatus" class="text-sm text-purple-400 ${isSellingGrape ? '' : 'hidden'}">Processing ${currentSellGrapeAmount} Grape Lumber...</p>
 
                         <button id="sellGrapeWoodButton" class="px-8 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out
-                            ${grapeLumberCount >= sellGrapeWoodAmount && sellGrapeWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering ? 'bg-purple-500 hover:bg-purple-600' : 'bg-gray-600 cursor-not-allowed'}"
-                            ${grapeLumberCount < sellGrapeWoodAmount || sellGrapeWoodAmount <= 0 || isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}>
+                            ${sellGrapeWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering ? 'bg-purple-500 hover:bg-purple-600' : 'bg-gray-600 cursor-not-allowed'}"
+                            ${sellGrapeWoodAmount <= 0 || isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}>
                             Exchange Grape Lumber
                         </button>
-                        ${grapeLumberCount < sellGrapeWoodAmount && !isSelling && !isSellingGrape && !isDelivering ? '<p class="text-red-400 text-sm mt-2">Not enough Grape Lumber!</p>' : ''}
                     </div>
                 </div> <!-- End of grid container -->
             `;
 
+            // Event listener for sellAmount input
             lumberMillDiv.querySelector('#sellAmount').addEventListener('input', (e) => {
-                sellWoodAmount = Math.max(1, parseInt(e.target.value) || 1);
-                renderApp(); // Re-render to update money preview and button state
+                let inputValue = parseInt(e.target.value);
+
+                if (isNaN(inputValue) || inputValue < 0) {
+                    sellWoodAmount = 0;
+                } else {
+                    sellWoodAmount = inputValue;
+                }
+
+                // Update money preview
+                const sellMoneyPreviewSpan = lumberMillDiv.querySelector('#sellMoneyPreview');
+                if (sellMoneyPreviewSpan) {
+                    sellMoneyPreviewSpan.textContent = sellWoodAmount * WOOD_TO_MONEY_RATE;
+                }
+
+                // Update button state
+                const sellWoodButton = lumberMillDiv.querySelector('#sellWoodButton');
+                if (sellWoodButton) {
+                    const canSell = sellWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering;
+                    sellWoodButton.disabled = !canSell;
+                    if (canSell) {
+                        sellWoodButton.classList.remove('bg-gray-600', 'cursor-not-allowed');
+                        sellWoodButton.classList.add('bg-orange-500', 'hover:bg-orange-600');
+                    } else {
+                        sellWoodButton.classList.remove('bg-orange-500', 'hover:bg-orange-600');
+                        sellWoodButton.classList.add('bg-gray-600', 'cursor-not-allowed');
+                    }
+                }
             });
+
             lumberMillDiv.querySelector('#sellWoodButton').addEventListener('click', sellWood);
 
             // Add event listener for the new upgrade button
@@ -849,8 +903,33 @@
             // New: Event listeners for Grape Lumber selling (only if upgraded)
             if (lumberMillUpgraded) {
                 lumberMillDiv.querySelector('#sellGrapeAmount').addEventListener('input', (e) => {
-                    sellGrapeWoodAmount = Math.max(1, parseInt(e.target.value) || 1);
-                    renderApp(); // Re-render to update money preview and button state
+                    let inputValue = parseInt(e.target.value);
+
+                    if (isNaN(inputValue) || inputValue < 0) {
+                        sellGrapeWoodAmount = 0;
+                    } else {
+                        sellGrapeWoodAmount = inputValue;
+                    }
+
+                    // Update money preview
+                    const sellGrapeMoneyPreviewSpan = lumberMillDiv.querySelector('#sellGrapeMoneyPreview');
+                    if (sellGrapeMoneyPreviewSpan) {
+                        sellGrapeMoneyPreviewSpan.textContent = sellGrapeWoodAmount * GRAPE_WOOD_TO_MONEY_RATE;
+                    }
+
+                    // Update button state
+                    const sellGrapeWoodButton = lumberMillDiv.querySelector('#sellGrapeWoodButton');
+                    if (sellGrapeWoodButton) {
+                        const canSell = sellGrapeWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering;
+                        sellGrapeWoodButton.disabled = !canSell;
+                        if (canSell) {
+                            sellGrapeWoodButton.classList.remove('bg-gray-600', 'cursor-not-allowed');
+                            sellGrapeWoodButton.classList.add('bg-purple-500', 'hover:bg-purple-600');
+                        } else {
+                            sellGrapeWoodButton.classList.remove('bg-purple-500', 'hover:bg-purple-600');
+                            sellGrapeWoodButton.classList.add('bg-gray-600', 'cursor-not-allowed');
+                        }
+                    }
                 });
                 lumberMillDiv.querySelector('#sellGrapeWoodButton').addEventListener('click', sellGrapeWood);
             }
@@ -1402,7 +1481,7 @@
 
         const renderBiomesView = () => {
             const biomesDiv = document.createElement('div');
-            biomesDiv.className = "w-full h-[700px] bg-gray-700 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-hidden";
+            biomesDiv.className = "w-full h-[900px] bg-gray-700 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-hidden";
             biomesDiv.innerHTML = `
                 <h2 class="text-3xl font-bold text-purple-400 mb-6">Explore Biomes!</h2>
                 <p class="text-lg text-gray-300 mb-4">Select a biome to teleport to:</p>
@@ -1451,6 +1530,8 @@
 
         // New: renderInventoryView function
         const renderInventoryView = () => {
+            console.log("Rendering Inventory View. Idle Wood Rate:", totalIdleWoodPerSecond, "Idle Soul Lumber Rate:", totalIdleSoulLumberPerSecond);
+
             const inventoryDiv = document.createElement('div');
             inventoryDiv.className = "w-full bg-gray-700 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-auto";
             inventoryDiv.style.height = 'auto'; // Allow content to dictate height
@@ -1596,8 +1677,7 @@
                 saveGame(); // Save game state after buying furniture
                 checkVampireForestUnlock(); // Check for unlock after buying furniture
             } else if (item) {
-                console.log("Not enough money to buy " + item.name);
-                // In a real app, you'd show a message to the user
+                showMessage("Not enough money to buy " + item.name, 'error');
             }
         };
 
@@ -1606,7 +1686,7 @@
             if (!axeToBuy) return;
 
             if (ownedAxes.includes(axeId)) {
-                console.log("You already own this axe!");
+                showMessage("You already own this axe!", 'info');
                 currentAxeId = axeId; // Equip if already owned
                 renderApp(); // Re-render to update equipped axe
                 saveGame(); // Save game state after equipping axe
@@ -1617,22 +1697,22 @@
                 moneyCount -= axeToBuy.moneyCost;
                 ownedAxes.push(axeId);
                 currentAxeId = axeId; // Equip new axe automatically
-                console.log(`Bought and equipped ${axeToBuy.name}!`);
+                showMessage(`Bought and equipped ${axeToBuy.name}!`, 'success');
                 renderApp(); // Re-render to update money, owned axes, and equipped axe
                 saveGame(); // Save game state after buying axe
             } else {
-                console.log("Not enough money to buy " + axeToBuy.name);
+                showMessage("Not enough money to buy " + axeToBuy.name, 'error');
             }
         };
 
         const equipAxe = (axeId) => {
             if (ownedAxes.includes(axeId)) {
                 currentAxeId = axeId;
-                console.log(`Equipped ${axeItems.find(axe => axe.id === axeId)?.name}`);
+                showMessage(`Equipped ${axeItems.find(axe => axe.id === axeId)?.name}`, 'success');
                 renderApp(); // Re-render to update equipped axe
                 saveGame(); // Save game state after equipping axe
             } else {
-                console.log("You don't own this axe.");
+                showMessage("You don't own this axe.", 'error');
             }
         };
 
@@ -1642,7 +1722,7 @@
             if (!carToBuy) return;
 
             if (ownedCars.includes(carId)) {
-                console.log("You already own this car!");
+                showMessage("You already own this car!", 'info');
                 currentCarId = carId; // Equip if already owned
                 renderApp(); // Re-render to update equipped car
                 saveGame(); // Save game state after equipping car
@@ -1653,17 +1733,17 @@
                 moneyCount -= carToBuy.moneyCost;
                 ownedCars.push(carId);
                 currentCarId = carId; // Equip new car automatically
-                console.log(`Bought and equipped ${carToBuy.name}!`);
+                showMessage(`Bought and equipped ${carToBuy.name}!`, 'success');
 
                 // Unlock deliveries if this is the first car purchased
                 if (ownedCars.length === 1) {
                     deliveriesUnlocked = true;
-                    console.log("Deliveries unlocked!");
+                    showMessage("Deliveries unlocked!", 'success');
                 }
                 renderApp(); // Re-render to update money, owned cars, equipped car, and potentially navigation
                 saveGame(); // Save game state after buying car
             } else {
-                console.log("Not enough money to buy " + carToBuy.name);
+                showMessage("Not enough money to buy " + carToBuy.name, 'error');
             }
         };
 
@@ -1671,22 +1751,22 @@
         const equipCar = (carId) => {
             if (ownedCars.includes(carId)) {
                 currentCarId = carId;
-                console.log(`Equipped ${carItems.find(car => car.id === carId)?.name}`);
+                showMessage(`Equipped ${carItems.find(car => car.id === carId)?.name}`, 'success');
                 renderApp(); // Re-render to update equipped car
                 saveGame(); // Save game state after equipping car
             } else {
-                console.log("You don't own this car.");
+                showMessage("You don't own this car.", 'error');
             }
         };
 
         // New: startDelivery function
         const startDelivery = (routeId) => {
             if (!currentCarId) {
-                console.log("No car equipped for delivery!");
+                showMessage("No car equipped for delivery! Please buy one from the Car Shop.", 'error');
                 return;
             }
             if (isDelivering) {
-                console.log("Already on a delivery!");
+                showMessage("Already on a delivery!", 'info');
                 return;
             }
 
@@ -1697,7 +1777,7 @@
 
             // Check if Soul Lumber requires a capable vehicle
             if (route.lumberType === 'soulLumber' && (!equippedCar || !equippedCar.deliversSoulLumber)) {
-                console.log("You need a vehicle capable of delivering Soul Lumber for this route!");
+                showMessage("You need a vehicle capable of delivering Soul Lumber for this route!", 'error');
                 return;
             }
 
@@ -1712,7 +1792,7 @@
             }
 
             if (!isLumberAvailable) {
-                console.log(`Not enough ${route.lumberType} for this delivery! Requires ${route.lumberRequired} ${route.lumberType}.`);
+                showMessage(`Not enough ${route.lumberType} for this delivery! Requires ${route.lumberRequired} ${route.lumberType}.`, 'error');
                 return;
             }
 
@@ -1768,7 +1848,7 @@
                         deliverySound.stop();
                     }
 
-                    console.log(`Delivered ${route.lumberRequired} ${route.lumberType} for ${route.moneyReward * equippedCar.moneyBonusMultiplier} money.`);
+                    showMessage(`Delivered ${route.lumberRequired} ${route.lumberType} for ${route.moneyReward * equippedCar.moneyBonusMultiplier} money!`, 'success');
                     renderApp(); // Full re-render to update counts and hide progress bar
                     saveGame(); // Save game state after delivery
                 }
@@ -1777,17 +1857,17 @@
 
 
         const sellWood = () => {
-            const amountToSell = parseInt(sellWoodAmount);
+            const amountToSell = parseInt(sellWoodAmount); // Use the state variable
             if (isNaN(amountToSell) || amountToSell <= 0) {
-                console.log("Please enter a valid amount to sell.");
+                showMessage("Please enter a valid amount to sell.", 'error');
                 return;
             }
             if (woodCount < amountToSell) {
-                console.log("Not enough wood to sell that amount.");
+                showMessage("Not enough wood to sell that amount!", 'error');
                 return;
             }
             if (isSelling || isSellingGrape || isDelivering) { // Disable if any selling/delivery process is active
-                console.log("Already processing a sale or delivery!");
+                showMessage("Already processing a sale or delivery!", 'info');
                 return;
             }
 
@@ -1825,8 +1905,7 @@
                     // Check for biomes unlock condition
                     if (moneyCount >= 100 && !biomesUnlocked) {
                         biomesUnlocked = true;
-                        console.log("Biomes unlocked!");
-                        // Optionally show a notification to the user
+                        showMessage("Biomes unlocked!", 'success');
                     }
 
                     isSelling = false;
@@ -1838,7 +1917,7 @@
                         sellingSound.stop();
                     }
 
-                    console.log(`Sold ${amountToSell} wood for ${amountToSell * WOOD_TO_MONEY_RATE} money.`);
+                    showMessage(`Sold ${amountToSell} wood for ${amountToSell * WOOD_TO_MONEY_RATE} money.`, 'success');
                     renderApp(); // Full re-render to update counts and hide progress bar
                     saveGame(); // Save game state after selling wood
                 }
@@ -1849,22 +1928,21 @@
         const sellGrapeWood = () => {
             // Check if the lumber mill is upgraded before allowing grape lumber selling
             if (!lumberMillUpgraded) {
-                console.log("Lumber Mill not upgraded. Cannot sell Grape Lumber.");
-                // Potentially add a UI message here
+                showMessage("Lumber Mill not upgraded. Cannot sell Grape Lumber.", 'error');
                 return;
             }
 
             const amountToSell = parseInt(sellGrapeWoodAmount);
             if (isNaN(amountToSell) || amountToSell <= 0) {
-                console.log("Please enter a valid amount of Grape Lumber to sell.");
+                showMessage("Please enter a valid amount of Grape Lumber to sell.", 'error');
                 return;
             }
             if (grapeLumberCount < amountToSell) {
-                console.log("Not enough Grape Lumber to sell that amount.");
+                showMessage("Not enough Grape Lumber to sell that amount!", 'error');
                 return;
             }
             if (isSelling || isSellingGrape || isDelivering) { // Disable if any selling/delivery process is active
-                console.log("Already processing a sale or delivery!");
+                showMessage("Already processing a sale or delivery!", 'info');
                 return;
             }
 
@@ -1907,7 +1985,7 @@
                         sellingSound.stop();
                     }
 
-                    console.log(`Sold ${amountToSell} Grape Lumber for ${amountToSell * GRAPE_WOOD_TO_MONEY_RATE} money.`);
+                    showMessage(`Sold ${amountToSell} Grape Lumber for ${amountToSell * GRAPE_WOOD_TO_MONEY_RATE} money.`, 'success');
                     renderApp(); // Full re-render to update counts and hide progress bar
                     saveGame(); // Save game state after selling grape lumber
                 }
@@ -1919,12 +1997,11 @@
             if (moneyCount >= LUMBER_MILL_UPGRADE_COST) {
                 moneyCount -= LUMBER_MILL_UPGRADE_COST;
                 lumberMillUpgraded = true;
-                console.log("Lumber Mill upgraded! You can now sell Grape Lumber.");
+                showMessage("Lumber Mill upgraded! You can now sell Grape Lumber.", 'success');
                 renderApp(); // Re-render to update money and show grape lumber selling section
                 saveGame(); // Save game state after upgrade
             } else {
-                console.log("Not enough money to upgrade the Lumber Mill.");
-                // In a real app, you'd show a message to the user
+                showMessage("Not enough money to upgrade the Lumber Mill.", 'error');
             }
         };
 
@@ -2041,20 +2118,20 @@
             allHousesFurniture[currentHouseId] = currentHouseFurniture.filter(item => item.id !== furnitureId);
 
             if (allHousesFurniture[currentHouseId].length < initialLength) {
-                console.log(`Deleted furniture item with ID: ${furnitureId}`);
+                showMessage(`Deleted furniture item.`, 'success');
                 renderApp(); // Re-render to remove the furniture visually
                 saveGame(); // Save game state after deleting furniture
                 checkVampireForestUnlock(); // Check for unlock after deleting furniture
                 startOrUpdateIdleGeneration(); // Update idle generation after deleting furniture
             } else {
-                console.log(`Furniture item with ID: ${furnitureId} not found.`);
+                showMessage(`Furniture item not found.`, 'error');
             }
         };
 
         const equipHome = (houseId) => {
             if (ownedHouses.includes(houseId)) {
                 currentHouseId = houseId;
-                console.log(`Equipped ${houseItems.find(h => h.id === houseId)?.name}`);
+                showMessage(`Equipped ${houseItems.find(h => h.id === houseId)?.name}`, 'success');
                 // Ensure the furniture array for the new house exists
                 if (!allHousesFurniture[currentHouseId]) {
                     allHousesFurniture[currentHouseId] = [];
@@ -2063,7 +2140,7 @@
                 saveGame(); // Save game state after equipping a new home
                 startOrUpdateIdleGeneration(); // Update idle generation when changing homes
             } else {
-                console.log("You don't own this house.");
+                showMessage("You don't own this house.", 'error');
             }
         };
 
@@ -2072,7 +2149,7 @@
             if (!houseToBuy) return;
 
             if (ownedHouses.includes(houseId)) {
-                console.log("You already own this house!");
+                showMessage("You already own this house!", 'info');
                 return;
             }
 
@@ -2082,12 +2159,12 @@
                 // Initialize an empty furniture array for the new house
                 allHousesFurniture[houseId] = [];
                 currentHouseId = houseId; // Automatically equip new house
-                console.log(`Bought and equipped ${houseToBuy.name}!`);
+                showMessage(`Bought and equipped ${houseToBuy.name}!`, 'success');
                 renderApp(); // Re-render to update money, owned houses, and equipped house
                 saveGame(); // Save game state after buying a house
                 startOrUpdateIdleGeneration(); // Update idle generation when buying a new home
             } else {
-                console.log("Not enough money to buy " + houseToBuy.name);
+                showMessage("Not enough money to buy " + houseToBuy.name, 'error');
             }
         };
 
@@ -2104,12 +2181,11 @@
 
             if (hasDemonicPool && !vampireForestUnlocked) {
                 vampireForestUnlocked = true;
-                console.log("Vampire Forest unlocked!");
-                // Optionally, show a notification to the user here
+                showMessage("Vampire Forest unlocked!", 'success');
             } else if (!hasDemonicPool && vampireForestUnlocked) {
                 // If a demonic pool was sold/deleted and it was the last one, lock the biome again
                 vampireForestUnlocked = false;
-                console.log("Vampire Forest locked again (no Demonic Pool owned).");
+                showMessage("Vampire Forest locked again (no Demonic Pool owned).", 'info');
             }
             renderApp(); // Re-render to update navigation/biome view
         };
@@ -2232,7 +2308,10 @@
         };
 
         const depositToChest = (chestId, itemType, amount) => {
-            if (isNaN(amount) || amount <= 0) return;
+            if (isNaN(amount) || amount <= 0) {
+                showMessage("Please enter a valid amount.", 'error');
+                return;
+            }
 
             const chest = allHousesFurniture[currentHouseId].find(item => item.id === chestId);
             if (!chest) return;
@@ -2241,20 +2320,20 @@
                 if (moneyCount >= amount) {
                     moneyCount -= amount;
                     chest.inventory.money += amount;
-                    console.log(`Deposited ${amount} money to chest ${chestId}.`);
+                    showMessage(`Deposited ${amount} money to chest.`, 'success');
                 } else {
-                    console.log("Not enough money to deposit.");
+                    showMessage("Not enough money to deposit.", 'error');
                 }
             } else if (itemType === 'soulLumber' && chest.type === 'demonic_chest') {
                 if (soulLumberCount >= amount) {
                     soulLumberCount -= amount;
                     chest.inventory.soulLumber += amount;
-                    console.log(`Deposited ${amount} Soul Lumber to Demonic Chest ${chestId}.`);
+                    showMessage(`Deposited ${amount} Soul Lumber to Demonic Chest.`, 'success');
                 } else {
-                    console.log("Not enough Soul Lumber to deposit.");
+                    showMessage("Not enough Soul Lumber to deposit.", 'error');
                 }
             } else {
-                console.log(`Invalid item type (${itemType}) for this chest type (${chest.type}).`);
+                showMessage(`Invalid item type (${itemType}) for this chest type (${chest.type}).`, 'error');
             }
             updateCurrencyDisplay(); // Update global currency display
             updateChestInventoryDisplay(chestId); // Update modal display
@@ -2262,7 +2341,10 @@
         };
 
         const withdrawFromChest = (chestId, itemType, amount) => {
-            if (isNaN(amount) || amount <= 0) return;
+            if (isNaN(amount) || amount <= 0) {
+                showMessage("Please enter a valid amount.", 'error');
+                return;
+            }
 
             const chest = allHousesFurniture[currentHouseId].find(item => item.id === chestId);
             if (!chest) return;
@@ -2271,20 +2353,20 @@
                 if (chest.inventory.money >= amount) {
                     chest.inventory.money -= amount;
                     moneyCount += amount;
-                    console.log(`Withdrew ${amount} money from chest ${chestId}.`);
+                    showMessage(`Withdrew ${amount} money from chest.`, 'success');
                 } else {
-                    console.log("Not enough money in chest to withdraw.");
+                    showMessage("Not enough money in chest to withdraw.", 'error');
                 }
             } else if (itemType === 'soulLumber' && chest.type === 'demonic_chest') {
                 if (chest.inventory.soulLumber >= amount) {
                     chest.inventory.soulLumber -= amount;
                     soulLumberCount += amount;
-                    console.log(`Withdrew ${amount} Soul Lumber from Demonic Chest ${chestId}.`);
+                    showMessage(`Withdrew ${amount} Soul Lumber from Demonic Chest.`, 'success');
                 } else {
-                    console.log("Not enough Soul Lumber in chest to withdraw.");
+                    showMessage("Not enough Soul Lumber in chest to withdraw.", 'error');
                 }
             } else {
-                console.log(`Invalid item type (${itemType}) for this chest type (${chest.type}).`);
+                showMessage(`Invalid item type (${itemType}) for this chest type (${chest.type}).`, 'error');
             }
             updateCurrencyDisplay(); // Update global currency display
             updateChestInventoryDisplay(chestId); // Update modal display
@@ -2319,6 +2401,10 @@
                 idleWoodGenerationInterval = null;
             }
 
+            // Reset rates before calculating
+            totalIdleWoodPerSecond = 0;
+            totalIdleSoulLumberPerSecond = 0;
+
             const { wood: newWoodRate, soulLumber: newSoulLumberRate } = calculateIdleGenerationRates();
             totalIdleWoodPerSecond = newWoodRate;
             totalIdleSoulLumberPerSecond = newSoulLumberRate;
@@ -2352,7 +2438,7 @@
             }
             totalIdleWoodPerSecond = 0;
             totalIdleSoulLumberPerSecond = 0;
-            console.log("All generators turned off.");
+            showMessage("All generators turned off.", 'info');
             renderApp(); // Re-render to update display and button state
             saveGame(); // Save game state after turning off generators
         };

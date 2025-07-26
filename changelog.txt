@@ -1,6 +1,9 @@
 DLCs
 - Demonics
 
+V1.4.2- - -
+Fixes cant scroll on Smaller screens in Biomes. Fixes Lumbermill All Lumber Mill Related Problems.
+
 V1.3.1- - - More Complete Version for the Demonics DLC.
 Moves Lumber Counts to a new Inventory implement. ATVs Now Deliver 20% Faster.
 Fixes Insanely high price for Demonic Mo-Bile. Fixed Mobile buttons Layout. Fixes
