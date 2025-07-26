@@ -1,6 +1,10 @@
 DLCs
 - Demonics
 
+V1.7.2- - -
+Shops are now moved to a Shops section to save navbar space. Custom Loading screen.
+Background Music. Cash Spend, & Button click sfx.
+
 V1.6.2- - -More Complete app version
 Soul Lumber takes longer. Soul Trees take longer to cut. Vehicles and Axes have been tweaked.
 Vampire Forest is now "Soul Forest". Adds 5 new commands to the debug console. Also makes

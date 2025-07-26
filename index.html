@@ -6,13 +6,11 @@
     <title>Lumber Tycoon | STADIASTUDIOS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-    <!-- Tone.js for sound effects -->
     <link rel="icon" type="image/x-icon" href="assets/appicon.png">
-    <!-- Removed Tone.js script: <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script> -->
 
     <!-- PWA Meta Tags for iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\
     <meta name="apple-mobile-web-app-title" content="Lumber Tycoon | STADIASTUDIOS">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0c0a09"/> <!-- Updated theme color for dark theme (stone-950) -->
@@ -175,7 +173,7 @@
           height: 100%;
           background-color: #22c55e; /* Bright green for clear progress (green-500) */
           width: 0%;
-          border-radius: 5px;
+          border-radius: 55px;
           transition: width 0.05s linear; /* Smooth progress animation */
         }
         /* Custom styles for the icons */
@@ -230,12 +228,119 @@
             color: #d6d3d1; /* stone-300 */
             cursor: pointer;
         }
+
+        /* Loading Screen Styles */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0c0a09; /* Match body background */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none; /* Allow clicks through once hidden */
+        }
+
+        .spinner {
+            border: 8px solid rgba(141, 152, 255, 0.938);
+            border-top: 8px solid #30ff75; /* Purple spinner */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loading-app-icon {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+        }
+
+        #welcome-message {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #d6d3d1; /* stone-300 */
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        #welcome-message.show {
+            opacity: 1;
+        }
+
+        /* New: Click to Start Overlay Styles */
+        #click-to-start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9998; /* Below loading screen, above game content */
+            transition: opacity 0.5s ease-out;
+        }
+
+        #click-to-start-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
+    <!-- Custom Loading Screen -->
+    <div id="loading-screen">
+        <img id="loading-app-icon" src="assets/appicon.png" alt="App Icon">
+        <div class="spinner"></div>
+        <p class="text-xl text-stone-300 mt-4">Loading LumberTycoon...</p>
+        <p id="welcome-message" class="mt-8"></p>
+    </div>
+
+    <!-- New: Click to Start Overlay for Music Autoplay -->
+    <div id="click-to-start-overlay" class="hidden">
+        <h2 class="text-4xl font-bold text-stone-100 mb-8">Lumber Tycoon</h2>
+        <p class="text-xl text-stone-300 mb-8">Welcome to LumberTycoon! Click Start Game to enable BG Music</p>
+        <button id="startButton" class="px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full shadow-lg transition-all duration-200">
+            Start Game
+        </button>
+    </div>
+
+    <audio id="backgroundMusic" loop preload="auto">
+        <source src="sfx/bgmusic.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
     <div id="app-root" class="app-container">
+        <!-- Music Controls - Will be rendered by JavaScript after initial load -->
+        <div id="music-controls" class="absolute top-4 right-4 flex items-center space-x-2 bg-stone-800 p-2 rounded-lg shadow-md z-50 hidden">
+            <button id="musicToggleButton" class="p-2 rounded-full bg-stone-700 hover:bg-stone-600 text-white">
+                <span id="musicIcon">🎵</span> <!-- Placeholder for play/pause icon -->
+            </button>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5" class="w-24 h-2 rounded-lg appearance-none cursor-pointer bg-stone-600 accent-blue-500">
+        </div>
         <!-- Content will be rendered here by JavaScript -->
     </div>
+
+    <!-- Tone.js for sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
 
     <script type="module">
         // Game state variables
@@ -243,7 +348,7 @@
         let moneyCount = 0;
         let grapeLumberCount = 0; // New: Counter for grape lumber
         let soulLumberCount = 0; // New: Counter for Soul Lumber
-        let currentView = 'forest'; // 'forest', 'home', 'lumberMill', 'axeShop', 'biomes', 'purpleForest', 'carShop', 'deliveries', 'vampireForest', 'inventory', 'debug', 'settings'
+        let currentView = 'forest'; // 'forest', 'home', 'lumberMill', 'axeShop', 'biomes', 'purpleForest', 'carShop', 'deliveries', 'vampireForest', 'inventory', 'debug', 'settings', 'shops'
         let lastLocation = 'forest'; // New: To store the last visited location
         let selectedFurnitureType = null; // For buying new furniture
         let sellWoodAmount = 1;
@@ -305,14 +410,66 @@
         let totalIdleWoodPerSecond = 0; // Sum of wood generated by all active generators
         let totalIdleSoulLumberPerSecond = 0; // New: Sum of soul lumber generated by all active generators
 
-        // Removed Tone.js sound effect setup variables
-
         // New: Global message box element
         let messageBox = null;
 
         // Debug console logs
         let debugConsoleLogs = [];
         const MAX_DEBUG_LOGS = 50; // Limit the number of logs to prevent performance issues
+
+        // New: Flag to check if it's the first time the game is loaded
+        const LOCAL_STORAGE_FIRST_LOAD_KEY = 'lumberTycoonFirstLoad';
+        let isFirstLoad = localStorage.getItem(LOCAL_STORAGE_FIRST_LOAD_KEY) === null;
+
+        // New: Music state variables
+        let backgroundMusic;
+        let musicVolume = 0.5; // Default volume
+        let isBackgroundMusicPlaying = false;
+
+        // Tone.js Players for sound effects
+        let clickSound;
+        let purchaseSound;
+
+        // Function to initialize Tone.js and load sounds
+        const setupAudio = async () => {
+            // Ensure Tone.js is started
+            if (Tone.context.state !== 'running') {
+                await Tone.start();
+                addDebugLog("Tone.js audio context started.");
+            }
+
+            // Load click sound
+            clickSound = new Tone.Player({
+                url: "sfx/navbuttonclick.mp3",
+                onload: () => addDebugLog("Click sound loaded."),
+                onerror: (e) => addDebugLog(`Error loading click sound: ${e}`)
+            }).toDestination();
+
+            // Load purchase sound
+            purchaseSound = new Tone.Player({
+                url: "sfx/purchase.mp3",
+                onload: () => addDebugLog("Purchase sound loaded."),
+                onerror: (e) => addDebugLog(`Error loading purchase sound: ${e}`)
+            }).toDestination();
+        };
+
+        // Function to play click sound
+        const playClickSound = () => {
+            if (clickSound && clickSound.loaded) {
+                clickSound.start();
+            } else {
+                addDebugLog("Click sound not loaded or not initialized.");
+            }
+        };
+
+        // Function to play purchase sound
+        const playPurchaseSound = () => {
+            if (purchaseSound && purchaseSound.loaded) {
+                purchaseSound.start();
+            } else {
+                addDebugLog("Purchase sound not loaded or not initialized.");
+            }
+        };
 
 
         // Function to show temporary messages
@@ -500,6 +657,7 @@
         const deliveriesIconUrl = 'assets/vehicles/basic-truck.png'; // New icon for deliveries
         const inventoryIconUrl = 'assets/nav/backpack.png'; // New icon for inventory
         const debugIconUrl = 'assets/nav/debug.png'; // Simple debug icon
+        const shopsIconUrl = 'assets/nav/shops.png'; // New icon for shops
         // Removed settingsIconUrl
 
 
@@ -576,7 +734,7 @@
                 // Adjusted px-6 to px-4 for slightly less horizontal padding on buttons
                 button.className = `px-4 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out ${currentView === viewName ? activeClass : inactiveClass}`;
                 button.addEventListener('click', () => {
-                    // Removed playButtonClickSound(); // Play sound effect on button click
+                    playClickSound(); // Play click sound effect on button click
                     // If currently selling, stop the process before navigating
                     if (isSelling) {
                         clearInterval(sellingIntervalRef);
@@ -623,8 +781,8 @@
 
                     currentView = viewName;
                     lastLocation = viewName; // Update lastLocation on navigation
-                    // Reset homeSubView and furniture modes when navigating away from or to home
-                    if (viewName === 'home') {
+                    // Reset homeSubView and furniture modes when navigating away from or to home or shops
+                    if (viewName === 'home' || viewName === 'shops') {
                         homeSubView = 'none'; // Reset to default home sub-view (hidden)
                         currentFurnitureCategory = 'furniture'; // Reset to default furniture category
                         isFurnitureShopOpen = false; // Keep shop closed by default when entering home view
@@ -645,8 +803,8 @@
             // Main Navigation Buttons - Adjusted colors for new theme
             navContainer.appendChild(createNavButton('forest', 'Chop Trees', biomesData.forest.iconUrl, 'bg-green-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
             navContainer.appendChild(createNavButton('lumberMill', 'Lumber Mill', lumberMillIconUrl, 'bg-orange-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
-            navContainer.appendChild(createNavButton('axeShop', 'Axe Shop', axeShopIconUrl, 'bg-red-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
-            navContainer.appendChild(createNavButton('carShop', 'Car Shop', carShopIconUrl, 'bg-blue-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600')); // New Car Shop button
+            // Replaced individual shop buttons with a single 'Shops' button
+            navContainer.appendChild(createNavButton('shops', 'Shops', shopsIconUrl, 'bg-red-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
             navContainer.appendChild(createNavButton('home', 'Your Home', homeIconUrl, 'bg-indigo-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
             
             // New Biomes Button - only show if unlocked
@@ -1018,6 +1176,40 @@
 
             return carShopDiv;
         };
+
+        // New: renderShopsView function to display Axe Shop and Car Shop buttons
+        const renderShopsView = () => {
+            const shopsDiv = document.createElement('div');
+            shopsDiv.className = "w-full h-[400px] bg-stone-800 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-hidden";
+            shopsDiv.style.height = 'auto';
+            shopsDiv.innerHTML = `
+                <h2 class="text-3xl font-bold text-red-400 mb-6">Shops</h2>
+                <p class="text-lg text-stone-300 mb-4">Choose a shop to visit:</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+                    <button id="goToAxeShopBtn" class="px-8 py-4 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out bg-red-600 hover:bg-red-700 flex items-center justify-center">
+                        <img src="${axeShopIconUrl}" alt="Axe Shop Icon" class="nav-icon mr-2" />Axe Shop
+                    </button>
+                    <button id="goToCarShopBtn" class="px-8 py-4 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out bg-blue-600 hover:bg-blue-700 flex items-center justify-center">
+                        <img src="${carShopIconUrl}" alt="Car Shop Icon" class="nav-icon mr-2" />Car Shop
+                    </button>
+                </div>
+            `;
+
+            shopsDiv.querySelector('#goToAxeShopBtn').addEventListener('click', () => {
+                currentView = 'axeShop';
+                renderApp();
+                saveGame();
+            });
+
+            shopsDiv.querySelector('#goToCarShopBtn').addEventListener('click', () => {
+                currentView = 'carShop';
+                renderApp();
+                saveGame();
+            });
+
+            return shopsDiv;
+        };
+
 
         // New: renderDeliveriesView function
         const renderDeliveriesView = () => {
@@ -1788,6 +1980,7 @@
         // Function to reset all game progress
         const resetGameProgress = () => {
             localStorage.removeItem(LOCAL_STORAGE_KEY);
+            localStorage.removeItem(LOCAL_STORAGE_FIRST_LOAD_KEY); // Reset first load flag too
             // Reset all global game state variables to their initial values
             woodCount = 0;
             moneyCount = 0;
@@ -1833,7 +2026,13 @@
                 clearInterval(idleWoodGenerationInterval);
                 idleWoodGenerationInterval = null;
             }
-            // Removed music related resets: isBackgroundMusicPlaying = false; musicVolume = 0.5;
+            // New: Music related resets
+            isBackgroundMusicPlaying = false;
+            musicVolume = 0.5;
+            if (backgroundMusic) {
+                backgroundMusic.pause();
+                backgroundMusic.currentTime = 0;
+            }
             debugConsoleLogs = []; // Clear debug logs as well
         };
 
@@ -1934,6 +2133,7 @@
                 isDeletingFurniture = false; // Exit delete mode if buying new furniture
                 selectedFurnitureToMoveId = null; // Clear any picked up furniture
                 isFurnitureShopOpen = false; // Close shop after buying an item
+                playPurchaseSound(); // Play purchase sound
                 renderApp(); // Re-render to update money and show placement hint
                 saveGame(); // Save game state after buying furniture
                 checkVampireForestUnlock(); // Check for unlock after buying furniture
@@ -1961,6 +2161,7 @@
                 moneyCount -= axeToBuy.moneyCost;
                 ownedAxes.push(axeId);
                 currentAxeId = axeId; // Equip new axe automatically
+                playPurchaseSound(); // Play purchase sound
                 showMessage(`Bought and equipped ${axeToBuy.name}!`, 'success');
                 addDebugLog(`Bought and equipped ${axeToBuy.name} for ${axeToBuy.moneyCost} money.`);
                 renderApp(); // Re-render to update money, owned axes, and equipped axe
@@ -2002,6 +2203,7 @@
                 moneyCount -= carToBuy.moneyCost;
                 ownedCars.push(carId);
                 currentCarId = carId; // Equip new car automatically
+                playPurchaseSound(); // Play purchase sound
                 showMessage(`Bought and equipped ${carToBuy.name}!`, 'success');
                 addDebugLog(`Bought and equipped ${carToBuy.name} for ${carToBuy.moneyCost} money.`);
 
@@ -2230,7 +2432,7 @@
             renderApp(); // Re-render to show progress bar and disable button
             addDebugLog(`Starting to sell ${amountToSell} grape lumber.`);
 
-            // Removed selling sound start: if (sellingSound && sellingSound.loaded) { sellingSound.start(); }
+            // Removed selling sound start: if (sellingSound && sellingSound.state === 'started') { sellingSound.start(); }
 
             const totalSellTime = amountToSell * SELL_TIME_PER_GRAPE_WOOD_MS;
             const intervalTime = 50;
@@ -2271,6 +2473,7 @@
             if (moneyCount >= LUMBER_MILL_UPGRADE_COST) {
                 moneyCount -= LUMBER_MILL_UPGRADE_COST;
                 lumberMillUpgraded = true;
+                playPurchaseSound(); // Play purchase sound
                 showMessage("Lumber Mill upgraded! You can now sell Grape Lumber.", 'success');
                 addDebugLog("Lumber Mill upgraded.");
                 renderApp(); // Re-render to update money and show grape lumber selling section
@@ -2445,6 +2648,7 @@
                 // Initialize an empty furniture array for the new house
                 allHousesFurniture[houseId] = [];
                 currentHouseId = houseId; // Automatically equip new house
+                playPurchaseSound(); // Play purchase sound
                 showMessage(`Bought and equipped ${houseToBuy.name}!`, 'success');
                 addDebugLog(`Bought and equipped home ${houseToBuy.name} for ${houseToBuy.moneyCost} money.`);
                 renderApp(); // Re-render to update money, owned houses, and equipped house
@@ -2772,7 +2976,9 @@
                 deliveriesUnlocked: deliveriesUnlocked, // New: Save deliveries unlocked state
                 totalIdleWoodPerSecond: totalIdleWoodPerSecond, // Save idle wood rate
                 totalIdleSoulLumberPerSecond: totalIdleSoulLumberPerSecond, // New: Save idle soul lumber rate
-                // Removed music related saves: isBackgroundMusicPlaying: isBackgroundMusicPlaying, musicVolume: musicVolume
+                // New: Music related saves
+                isBackgroundMusicPlaying: isBackgroundMusicPlaying,
+                musicVolume: musicVolume
                 // Do not save isSelling, sellingProgress, etc. as they are transient states
             };
             try {
@@ -2829,7 +3035,9 @@
                     deliveriesUnlocked = gameState.deliveriesUnlocked !== undefined ? gameState.deliveriesUnlocked : false; // New: Load deliveries unlocked state
                     totalIdleWoodPerSecond = gameState.totalIdleWoodPerSecond || 0; // Load idle wood rate
                     totalIdleSoulLumberPerSecond = gameState.totalIdleSoulLumberPerSecond || 0; // New: Load idle soul lumber rate
-                    // Removed music related loads: isBackgroundMusicPlaying = gameState.isBackgroundMusicPlaying !== undefined ? gameState.isBackgroundMusicPlaying : false; musicVolume = gameState.musicVolume !== undefined ? gameState.musicVolume : 0.5;
+                    // New: Music related loads
+                    isBackgroundMusicPlaying = gameState.isBackgroundMusicPlaying !== undefined ? gameState.isBackgroundMusicPlaying : false;
+                    musicVolume = gameState.musicVolume !== undefined ? gameState.musicVolume : 0.5;
 
                     addDebugLog("Game loaded successfully!");
                 } else {
@@ -2861,7 +3069,9 @@
                 deliveriesUnlocked = false; // New: Reset deliveries unlocked state
                 totalIdleWoodPerSecond = 0; // Reset idle wood rate
                 totalIdleSoulLumberPerSecond = 0; // New: Reset idle soul lumber rate
-                // Removed music related resets: isBackgroundMusicPlaying = false; musicVolume = 0.5;
+                // New: Music related resets
+                isBackgroundMusicPlaying = false;
+                musicVolume = 0.5;
             }
             // Reset any active processes on load to prevent inconsistencies
             isSelling = false;
@@ -2905,6 +3115,73 @@
             startOrUpdateIdleGeneration();
         };
 
+        // --- Music Control Functions ---
+        const startBackgroundMusic = () => {
+            backgroundMusic = document.getElementById('backgroundMusic');
+            if (backgroundMusic) {
+                backgroundMusic.volume = musicVolume; // Set initial volume
+                backgroundMusic.play().then(() => {
+                    isBackgroundMusicPlaying = true;
+                    updateMusicControlsUI();
+                    addDebugLog("Background music started.");
+                }).catch(error => {
+                    console.warn("Autoplay prevented:", error);
+                    addDebugLog("Autoplay prevented for music. User interaction needed.");
+                    isBackgroundMusicPlaying = false; // Ensure state is correct if autoplay fails
+                    updateMusicControlsUI();
+                });
+            }
+        };
+
+        const toggleMusic = () => {
+            if (backgroundMusic) {
+                if (isBackgroundMusicPlaying) {
+                    backgroundMusic.pause();
+                    isBackgroundMusicPlaying = false;
+                    addDebugLog("Background music paused.");
+                } else {
+                    backgroundMusic.play().then(() => {
+                        isBackgroundMusicPlaying = true;
+                        addDebugLog("Background music resumed.");
+                    }).catch(error => {
+                        console.warn("Failed to play music:", error);
+                        addDebugLog("Failed to play music. User interaction might be required.");
+                        isBackgroundMusicPlaying = false; // Keep state as paused if play fails
+                    });
+                }
+                updateMusicControlsUI();
+                saveGame(); // Save music state
+            }
+        };
+
+        const setMusicVolume = (volume) => {
+            if (backgroundMusic) {
+                musicVolume = parseFloat(volume);
+                backgroundMusic.volume = musicVolume;
+                addDebugLog(`Music volume set to: ${musicVolume}`);
+                saveGame(); // Save music volume
+            }
+        };
+
+        const updateMusicControlsUI = () => {
+            const musicToggleButton = document.getElementById('musicToggleButton');
+            const musicIcon = document.getElementById('musicIcon');
+            const volumeSlider = document.getElementById('volumeSlider');
+            const musicControlsDiv = document.getElementById('music-controls');
+
+            if (musicControlsDiv) {
+                musicControlsDiv.classList.remove('hidden'); // Ensure controls are visible after game starts
+            }
+
+            if (musicToggleButton && musicIcon) {
+                musicIcon.textContent = isBackgroundMusicPlaying ? '🔊' : '🔇'; // Speaker emoji for playing, muted for paused
+            }
+            if (volumeSlider) {
+                volumeSlider.value = musicVolume;
+            }
+        };
+
+
         // --- Main Render Function ---
         const renderApp = () => {
             const appRoot = getAppRoot();
@@ -2934,10 +3211,13 @@
                 case 'lumberMill':
                     appRoot.appendChild(renderLumberMillView());
                     break;
-                case 'axeShop':
+                case 'shops': // New case for the Shops view
+                    appRoot.appendChild(renderShopsView());
+                    break;
+                case 'axeShop': // Axe Shop is now a sub-view of Shops
                     appRoot.appendChild(renderAxeShopView());
                     break;
-                case 'carShop': // New case for car shop
+                case 'carShop': // Car Shop is now a sub-view of Shops
                     appRoot.appendChild(renderCarShopView());
                     break;
                 case 'home':
@@ -2965,23 +3245,80 @@
                 default:
                     appRoot.appendChild(renderTreeChoppingView('forest'));
             }
+
+            // Update music controls UI after rendering the app
+            updateMusicControlsUI();
         };
 
         // --- Initialization ---
-        window.onload = () => {
-            // Removed setupAudio(); // Initialize audio
-            loadGame(); // Load game state before initial render
-            renderApp(); // Initial render with loaded or default state
+        window.onload = async () => { // Made onload async to await Tone.start()
+            const loadingScreen = document.getElementById('loading-screen');
+            const welcomeMessage = document.getElementById('welcome-message');
+            const clickToStartOverlay = document.getElementById('click-to-start-overlay');
+            const startButton = document.getElementById('startButton');
+
+            // Show loading screen immediately
+            loadingScreen.classList.remove('hidden');
+
+            // Load game state
+            loadGame();
+
+            // Get background music element
+            backgroundMusic = document.getElementById('backgroundMusic');
+            if (backgroundMusic) {
+                backgroundMusic.volume = musicVolume; // Set initial volume from loaded state
+            }
+
+            // Simulate loading time and then hide loading screen
+            setTimeout(() => {
+                loadingScreen.classList.add('hidden'); // Fade out loading screen
+
+                if (isFirstLoad) {
+                    welcomeMessage.textContent = "Welcome to LumberTycoon!";
+                    welcomeMessage.classList.add('show'); // Show welcome message
+                    localStorage.setItem(LOCAL_STORAGE_FIRST_LOAD_KEY, 'false'); // Mark as not first load
+                    setTimeout(() => {
+                        welcomeMessage.classList.remove('show'); // Fade out welcome message
+                        // After welcome message, show click-to-start overlay for first-time users
+                        clickToStartOverlay.classList.remove('hidden');
+                    }, 3000); // Hide welcome message after 3 seconds
+                } else {
+                    // For returning users, directly show click-to-start overlay (or start game if music was off)
+                    clickToStartOverlay.classList.remove('hidden');
+                }
+            }, 1000); // Adjust loading screen display time as needed (e.g., 1000ms = 1 second)
+
+            // Event listener for the "Start Game" button on the overlay
+            startButton.addEventListener('click', async () => { // Made the click handler async
+                clickToStartOverlay.classList.add('hidden'); // Hide the overlay
+                await setupAudio(); // Initialize Tone.js and load sounds ONLY after user click
+                startBackgroundMusic(); // Attempt to start music
+                renderApp(); // Initial render with loaded or default state
+            });
+
+            // Add event listeners for music controls once they are available in the DOM
+            document.addEventListener('DOMContentLoaded', () => {
+                const musicToggleButton = document.getElementById('musicToggleButton');
+                const volumeSlider = document.getElementById('volumeSlider');
+
+                if (musicToggleButton) {
+                    musicToggleButton.addEventListener('click', toggleMusic);
+                }
+                if (volumeSlider) {
+                    volumeSlider.addEventListener('input', (e) => setMusicVolume(e.target.value));
+                }
+                updateMusicControlsUI(); // Initialize UI based on loaded state
+            });
+
+            // Save game state before the user leaves or refreshes the page
+            window.addEventListener('beforeunload', saveGame);
+
+            // Prevent double-tap zoom on iOS and other mobile browsers
+            // Add this outside of window.onload to ensure it's active immediately
+            document.documentElement.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+            }, { passive: false });
         };
-
-        // Save game state before the user leaves or refreshes the page
-        window.addEventListener('beforeunload', saveGame);
-
-        // Prevent double-tap zoom on iOS and other mobile browsers
-        // Add this outside of window.onload to ensure it's active immediately
-        document.documentElement.addEventListener('dblclick', (e) => {
-            e.preventDefault();
-        }, { passive: false });
     </script>
 </body>
 </html>
