@@ -13,7 +13,7 @@ let startY = 0;
 let downSwipes = 0;
 let rightSwipes = 0;
 const swipeThreshold = 50; // Minimum distance for a swipe to register
-const swipeTimeout = 1000; // Max time between swipes in a sequence (1 second)
+const swipeTimeout = 1500; // Max time between swipes in a sequence (1.5 seconds - increased for leniency)
 let lastSwipeTime = 0;
 
 // Keyboard Cheat Code variables
@@ -35,6 +35,7 @@ const resetSwipeCheat = () => {
     downSwipes = 0;
     rightSwipes = 0;
     lastSwipeTime = 0;
+    console.log("Swipe cheat sequence reset.");
 };
 
 /**
@@ -49,6 +50,7 @@ const handleTouchStart = (e) => {
         if (Date.now() - lastSwipeTime > swipeTimeout) {
             resetSwipeCheat();
         }
+        console.log(`Touch start: (${startX}, ${startY})`);
     }
 };
 
@@ -64,27 +66,38 @@ const handleTouchEnd = (e) => {
         const diffX = endX - startX;
         const diffY = endY - startY;
 
+        let swipeDetected = false;
+
         // Check for down swipe
         if (diffY > swipeThreshold && Math.abs(diffX) < swipeThreshold) {
             downSwipes++;
             rightSwipes = 0; // Reset right swipes if a down swipe occurs
             lastSwipeTime = Date.now();
+            swipeDetected = true;
+            console.log(`Down swipe detected. Down swipes: ${downSwipes}`);
         }
         // Check for right swipe
         else if (diffX > swipeThreshold && Math.abs(diffY) < swipeThreshold) {
-            rightSwipes++;
             // Only increment right swipes if we have at least one down swipe
             if (downSwipes > 0) {
+                rightSwipes++;
                 lastSwipeTime = Date.now();
+                swipeDetected = true;
+                console.log(`Right swipe detected. Right swipes: ${rightSwipes}`);
             } else {
+                console.log("Right swipe before any down swipes, resetting.");
                 resetSwipeCheat(); // Reset if right swipe comes before down swipes
             }
-        } else {
+        }
+
+        if (!swipeDetected) {
+            console.log("No valid swipe detected, resetting sequence.");
             resetSwipeCheat(); // Reset if not a clear down or right swipe
         }
 
         // Check for "makemearichman" cheat code activation via swipe
-        if (downSwipes >= 5 && rightSwipes >= 5) {
+        // Reduced required swipes to 3 down and 3 right
+        if (downSwipes >= 3 && rightSwipes >= 3) {
             // Access moneyCount via the passed reference
             if (_moneyCountRef) {
                 _moneyCountRef.value += CHEAT_MONEY_AMOUNT;
@@ -93,6 +106,7 @@ const handleTouchEnd = (e) => {
             _updateCurrencyDisplay();
             _saveGame();
             resetSwipeCheat(); // Reset after successful activation
+            console.log("Swipe cheat activated!");
         }
     }
 };
