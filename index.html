@@ -31,6 +31,8 @@
           /* Hide scrollbar for various browsers */
           -ms-overflow-style: none;  /* IE and Edge */
           scrollbar-width: none;  /* Firefox */
+          /* Prevent double-tap zoom on mobile */
+          touch-action: manipulation;
         }
         /* Hide scrollbar for Webkit browsers (Chrome, Safari) */
         body::-webkit-scrollbar {
@@ -241,7 +243,7 @@
         let moneyCount = 0;
         let grapeLumberCount = 0; // New: Counter for grape lumber
         let soulLumberCount = 0; // New: Counter for Soul Lumber
-        let currentView = 'forest'; // 'forest', 'home', 'lumberMill', 'axeShop', 'biomes', 'purpleForest', 'carShop', 'deliveries', 'vampireForest'
+        let currentView = 'forest'; // 'forest', 'home', 'lumberMill', 'axeShop', 'biomes', 'purpleForest', 'carShop', 'deliveries', 'vampireForest', 'inventory'
         let lastLocation = 'forest'; // New: To store the last visited location
         let selectedFurnitureType = null; // For buying new furniture
         let sellWoodAmount = 1;
@@ -276,9 +278,9 @@
         let ownedHouses = ['basic_home']; // Start with basic home
         // This object will store furniture for each house
         let allHousesFurniture = { 'basic_home': [] };
-        let homeSubView = 'furnitureShop'; // 'furnitureShop', 'changeHome', 'buyHouses'
+        let homeSubView = 'none'; // Changed default to 'none' to hide shop initially
         let currentFurnitureCategory = 'furniture'; // 'furniture', 'pets', 'generators' - New state for furniture categories
-        let showFurnitureShop = false; // New state to control furniture shop visibility
+        let isFurnitureShopOpen = false; // Changed default to 'false' to hide shop initially
 
         // New state variable for biomes unlock
         let biomesUnlocked = false;
@@ -376,7 +378,7 @@
             { id: 'demonic_chest', name: 'Demonic Chest', moneyCost: 2000, imageUrl: 'assets/furniture/demonic-chest.png', width: 60, height: 60, category: 'furniture' }, // New Demonic Chest
             // Added new demonic furniture items
             { id: 'demonic_sofa', name: 'Demonic Sofa', moneyCost: 1800, imageUrl: 'assets/furniture/demonic-sofa.png', width: 150, height: 120, category: 'furniture' },
-            { id: 'demonic_table', name: 'Demonic Table', moneyCost: 1000, imageUrl: 'assets/furniture/demonic-table.png', width: 100, height: 100, category: 'furniture' },
+            { id: 'demonic_table', name: 'Demonic Table', moneyCost: 1000, imageUrl: 'assets/furniture/demonic-table.png', width: 120, height: 80, category: 'furniture' },
             { id: 'demonic_chair', name: 'Demonic Chair', moneyCost: 700, imageUrl: 'assets/furniture/demonic-chair.png', width: 70, height: 70, category: 'furniture' },
             // New Generator Item - Corrected imageUrl
             { id: 'basic_idle_generator', name: 'Basic Idle Generator', moneyCost: 3000, imageUrl: 'assets/furniture/generator1.png', width: 120, height: 120, category: 'generators', generatesWoodPerSecond: 1 },
@@ -384,13 +386,14 @@
             { id: 'soul_lumber_generator', name: 'Demonic Generator', moneyCost: 9999, imageUrl: 'assets/furniture/demonic-generator.png', width: 100, height: 100, category: 'generators', generatesSoulLumberPerSecond: 0.25 }, // 1 soul lumber every 4 seconds = 0.25 per second
         ];
 
-        // Car data - Modified to give money bonus instead of delivery speed
+        // Car data - Modified to give money bonus and delivery speed
         const carItems = [
-            { id: 'bicycle', name: 'Basic Quad', moneyCost: 900, moneyBonusMultiplier: 1.0, imageUrl: 'assets/vehicles/basic-quad.png', width: 100, height: 70 }, // No bonus
-            { id: 'pickup_truck', name: 'Pickup Truck', moneyCost: 2000, moneyBonusMultiplier: 1.2, imageUrl: 'assets/vehicles/basic-truck.png', width: 120, height: 80 }, // 20% more money
-            { id: 'delivery_van', name: 'ATV', moneyCost: 3000, moneyBonusMultiplier: 1.5, imageUrl: 'assets/vehicles/atv2.png', width: 110, height: 75 }, // 50% more money
-            { id: 'semi_truck', name: 'ATV', moneyCost: 5000, moneyBonusMultiplier: 5.0, imageUrl: 'assets/vehicles/atv.png', width: 130, height: 90 }, // 100% more money
-            { id: 'demonic_mo_bile', name: 'Demonic Mo-Bile', moneyCost: 10000, moneyBonusMultiplier: 10.0, imageUrl: 'assets/vehicles/demonic-mo-bile.png', width: 140, height: 95 }, // New Demonic Mo-Bile
+            { id: 'bicycle', name: 'Basic Quad', moneyCost: 900, moneyBonusMultiplier: 1.0, deliverySpeedMultiplier: 1.2, imageUrl: 'assets/vehicles/basic-quad.png', deliversSoulLumber: false }, // No bonus
+            { id: 'pickup_truck', name: 'Pickup Truck', moneyCost: 2000, moneyBonusMultiplier: 1.2, deliverySpeedMultiplier: 1.3, imageUrl: 'assets/vehicles/basic-truck.png', deliversSoulLumber: false }, // 20% more money
+            { id: 'delivery_van', name: 'ATV', moneyCost: 3000, moneyBonusMultiplier: 1.5, deliverySpeedMultiplier: 1.5, imageUrl: 'assets/vehicles/atv2.png', deliversSoulLumber: false }, // 50% more money, 30% faster delivery
+            { id: 'semi_truck', name: 'ATV', moneyCost: 5000, moneyBonusMultiplier: 5.0, deliverySpeedMultiplier: 13, imageUrl: 'assets/vehicles/atv.png', deliversSoulLumber: false }, // 100% more money, 30% faster delivery
+            { id: 'demonic_mo_bile', name: 'Demonic Mo-Bile', moneyCost: 6999, moneyBonusMultiplier: 10.0, deliverySpeedMultiplier: 13, imageUrl: 'assets/vehicles/demonic-mo-bile.png', deliversSoulLumber: true }, // New Demonic Mo-Bile
+            { id: 'nightcrawler_atv', name: 'Nightcrawler ATV', moneyCost: 8500, moneyBonusMultiplier: 13.0, deliverySpeedMultiplier: 30, imageUrl: 'assets/vehicles/nightcrawler-atv.png', deliversSoulLumber: true }, // New Nightcrawler ATV
         ];
 
         // Axe data
@@ -402,7 +405,7 @@
             { id: 'steel_axe', name: 'Glowing Axe', moneyCost: 325, cutSpeedMultiplier: 5, imageUrl: 'assets/axes/steel-axe.png' }, // New Steel Axe, 5x faster
             { id: 'gold_axe', name: 'Juicy Axe', moneyCost: 500, cutSpeedMultiplier: 20, imageUrl: 'assets/axes/juicey-axe.png' }, // New Gold Axe, 6x faster (6% extra damage)
             { id: 'mighty_axe', name: 'Phase Axe', moneyCost: 750, cutSpeedMultiplier: 30, imageUrl: 'assets/axes/phase-axe.png' }, // New Mighty Axe, 40% extra damage (20 * 1.4 = 28)
-            { id: 'demonic_axe', name: 'Demonic AXE', moneyCost: 4000, cutSpeedMultiplier: 110, imageUrl: 'assets/axes/demonic-axe.png' },
+            { id: 'demonic_axe', name: 'Demonic AXE', moneyCost: 850, cutSpeedMultiplier: 110, imageUrl: 'assets/axes/demonic-axe.png' },
         ];
 
         // House data
@@ -481,6 +484,7 @@
         const biomesIconUrl = 'assets/tree2.png'; // New icon for biomes
         const carShopIconUrl = 'assets/vehicles/pickup-truck.png'; // New icon for car shop
         const deliveriesIconUrl = 'assets/vehicles/basic-truck.png'; // New icon for deliveries
+        const inventoryIconUrl = 'assets/nav/backpack.png'; // New icon for inventory
 
 
         // --- UI Update Functions ---
@@ -491,57 +495,71 @@
             const moneySpan = document.getElementById('moneyCount');
             const grapeLumberSpan = document.getElementById('grapeLumberCount'); // New: Get grape lumber span
             const soulLumberSpan = document.getElementById('soulLumberCount'); // New: Get soul lumber span
+            const idleWoodRateSpan = document.getElementById('idleWoodRate'); // New: Get idle wood rate span
+            const idleSoulLumberRateSpan = document.getElementById('idleSoulLumberRate'); // New: Get idle soul lumber rate span
+            const axeDisplayDiv = document.getElementById('currentAxeDisplay');
+            const carDisplayDiv = document.getElementById('currentCarDisplay');
+
+
             if (woodSpan) woodSpan.textContent = woodCount;
             if (moneySpan) moneySpan.textContent = moneyCount;
             if (grapeLumberSpan) grapeLumberSpan.textContent = grapeLumberCount; // New: Update grape lumber count
             if (soulLumberSpan) soulLumberSpan.textContent = soulLumberCount; // New: Update soul lumber count
-        };
+            if (idleWoodRateSpan) idleWoodRateSpan.textContent = `${totalIdleWoodPerSecond}/sec`;
+            if (idleSoulLumberRateSpan) idleSoulLumberRateSpan.textContent = `${totalIdleSoulLumberPerSecond}/sec`;
 
-        const updateAxeDisplay = () => {
-            const axeDisplayDiv = document.getElementById('currentAxeDisplay');
-            if (!axeDisplayDiv) return;
+            // Update axe display if the element exists (i.e., we are in the inventory view)
+            if (axeDisplayDiv) {
+                const currentAxe = axeItems.find(axe => axe.id === currentAxeId);
+                if (currentAxe) {
+                    axeDisplayDiv.innerHTML = `
+                        <span>Current Axe:</span>
+                        <img src="${currentAxe.imageUrl}" alt="${currentAxe.name}" class="w-8 h-8 rounded-full" />
+                        <span class="text-blue-400">${currentAxe.name}</span>
+                        <span class="text-sm text-gray-300">(Cuts ${currentAxe.cutSpeedMultiplier}x faster)</span>
+                    `;
+                    axeDisplayDiv.classList.remove('hidden');
+                } else {
+                    axeDisplayDiv.classList.add('hidden');
+                }
+            }
 
-            const currentAxe = axeItems.find(axe => axe.id === currentAxeId);
-            if (currentAxe) {
-                axeDisplayDiv.innerHTML = `
-                    <span>Current Axe:</span>
-                    <img src="${currentAxe.imageUrl}" alt="${currentAxe.name}" class="w-8 h-8 rounded-full" />
-                    <span class="text-blue-400">${currentAxe.name}</span>
-                    <span class="text-sm text-gray-300">(Cuts ${currentAxe.cutSpeedMultiplier}x faster)</span>
-                `;
-                axeDisplayDiv.classList.remove('hidden');
-            } else {
-                axeDisplayDiv.classList.add('hidden');
+            // Update car display if the element exists (i.e., we are in the inventory view)
+            if (carDisplayDiv) {
+                const currentCar = carItems.find(car => car.id === currentCarId);
+                if (currentCar) {
+                    carDisplayDiv.innerHTML = `
+                        <span>Current Car:</span>
+                        <img src="${currentCar.imageUrl}" alt="${currentCar.name}" class="w-8 h-8 rounded-full" />
+                        <span class="text-blue-400">${currentCar.name}</span>
+                        <span class="text-sm text-gray-300">(Gives ${currentCar.moneyBonusMultiplier}x more money)</span>
+                        <span class="text-sm text-gray-300">(Delivers ${currentCar.deliverySpeedMultiplier}x faster)</span>
+                    `;
+                    carDisplayDiv.classList.remove('hidden');
+                } else {
+                    carDisplayDiv.classList.add('hidden');
+                }
             }
         };
 
-        const updateCarDisplay = () => {
-            const carDisplayDiv = document.getElementById('currentCarDisplay');
-            if (!carDisplayDiv) return;
-
-            const currentCar = carItems.find(car => car.id === currentCarId);
-            if (currentCar) {
-                carDisplayDiv.innerHTML = `
-                    <span>Current Car:</span>
-                    <img src="${currentCar.imageUrl}" alt="${currentCar.name}" class="w-8 h-8 rounded-full" />
-                    <span class="text-blue-400">${currentCar.name}</span>
-                    <span class="text-sm text-gray-300">(Gives ${currentCar.moneyBonusMultiplier}x more money)</span>
-                `;
-                carDisplayDiv.classList.remove('hidden');
-            } else {
-                carDisplayDiv.classList.add('hidden');
-            }
-        };
+        // updateAxeDisplay and updateCarDisplay functions are now integrated into updateCurrencyDisplay
+        // and will be called when the inventory view is rendered.
+        // Removed original updateAxeDisplay and updateCarDisplay as separate functions.
 
         const setupNavigation = () => {
             const navContainer = document.createElement('div');
-            navContainer.className = "flex flex-wrap justify-center space-x-4 mb-8"; // Use flex-wrap for responsiveness
+            // Adjusted classes for better mobile responsiveness:
+            // - Replaced space-x-4 with gap-2 for consistent spacing even when wrapping.
+            // - Added flex-wrap to allow items to wrap onto multiple lines.
+            // - Ensured justify-center for horizontal centering.
+            navContainer.className = "flex flex-wrap justify-center gap-2 mb-8";
 
             const createNavButton = (viewName, label, iconUrl, activeClass, inactiveClass, onClick = null) => {
                 const button = document.createElement('button');
                 // Use img tag for icon
                 button.innerHTML = `<img src="${iconUrl}" alt="${label} Icon" class="nav-icon" />${label}`;
-                button.className = `px-6 py-3 rounded-full font-semibold transition-all duration-200 ease-in-out ${currentView === viewName ? activeClass : inactiveClass}`;
+                // Adjusted px-6 to px-4 for slightly less horizontal padding on buttons
+                button.className = `px-4 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out ${currentView === viewName ? activeClass : inactiveClass}`;
                 button.addEventListener('click', () => {
                     // If currently selling, stop the process before navigating
                     if (isSelling) {
@@ -592,14 +610,17 @@
                     isDeletingFurniture = false;
                     selectedFurnitureToMoveId = null;
                     selectedFurnitureType = null;
-                    showFurnitureShop = false; // Hide furniture shop by default when navigating away from or to home
+                    isFurnitureShopOpen = false; // Close furniture shop when navigating to other main views
 
                     currentView = viewName;
                     lastLocation = viewName; // Update lastLocation on navigation
                     // Reset homeSubView and furniture modes when navigating away from or to home
                     if (viewName === 'home') {
-                        homeSubView = 'furnitureShop'; // Reset to default home sub-view
+                        homeSubView = 'none'; // Reset to default home sub-view (hidden)
                         currentFurnitureCategory = 'furniture'; // Reset to default furniture category
+                        isFurnitureShopOpen = false; // Keep shop closed by default when entering home view
+                    } else {
+                        homeSubView = 'none'; // Ensure home sub-view is 'none' if not in home view
                     }
                     
                     if (onClick) { // Execute custom click handler if provided
@@ -628,6 +649,9 @@
             if (deliveriesUnlocked) {
                 navContainer.appendChild(createNavButton('deliveries', 'Deliveries', deliveriesIconUrl, 'bg-teal-600 text-white shadow-lg', 'bg-gray-700 text-gray-300 hover:bg-gray-600'));
             }
+
+            // New Inventory Button
+            navContainer.appendChild(createNavButton('inventory', 'Inventory', inventoryIconUrl, 'bg-gray-600 text-white shadow-lg', 'bg-gray-700 text-gray-300 hover:bg-gray-600'));
 
             return navContainer;
         };
@@ -907,6 +931,8 @@
                     <img src="${car.imageUrl}" alt="${car.name}" class="w-20 h-20 mb-3 rounded-full object-contain" />
                     <h3 class="text-xl font-semibold text-gray-100">${car.name}</h3>
                     <p class="text-sm text-gray-300">Money Bonus: ${car.moneyBonusMultiplier}x</p>
+                    <p class="text-sm text-gray-300">Delivery Speed: ${car.deliverySpeedMultiplier}x faster</p>
+                    ${car.deliversSoulLumber ? '<p class="text-sm text-red-400">Delivers Soul Lumber</p>' : ''}
                     <p class="text-lg font-bold text-green-400 mt-2">Cost: ${car.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
                 `;
 
@@ -945,6 +971,7 @@
                         <span class="text-lg font-semibold text-gray-100 mr-2">Using:</span>
                         <img src="${carItems.find(c => c.id === currentCarId)?.imageUrl}" alt="${carItems.find(c => c.id === currentCarId)?.name}" class="w-10 h-10 rounded-full object-contain mr-2" />
                         <span class="text-xl font-bold text-blue-400">${carItems.find(c => c.id === currentCarId)?.name}</span>
+                        <span class="text-sm text-gray-300 ml-2">(Delivers ${carItems.find(c => c.id === currentCarId)?.deliverySpeedMultiplier}x faster)</span>
                     </div>
                 ` : `
                     <p class="text-red-400 text-lg mb-6">You need to purchase and equip a car from the Car Shop to start deliveries!</p>
@@ -967,8 +994,6 @@
                 let lumberIcon = '';
                 let currentLumberCount = 0;
                 let isLumberAvailable = false;
-                let isDemonicMoBileRequired = (route.lumberType === 'soulLumber');
-                let isDemonicMoBileEquipped = (currentCarId === 'demonic_mo_bile');
                 let deliveryButtonText = 'Start Delivery';
                 let deliveryButtonDisabled = false;
                 let deliveryButtonClasses = 'bg-teal-500 hover:bg-teal-600';
@@ -988,17 +1013,20 @@
                     isLumberAvailable = soulLumberCount >= route.lumberRequired;
                 }
 
+                const equippedCar = carItems.find(c => c.id === currentCarId);
+                const canDeliverSoulLumber = equippedCar && equippedCar.deliversSoulLumber;
+
                 // Check general conditions for delivery
                 if (!currentCarId || !isLumberAvailable || isDelivering) {
                     deliveryButtonDisabled = true;
                     deliveryButtonClasses = 'bg-gray-600 cursor-not-allowed';
                 }
 
-                // Specific condition for Soul Lumber and Demonic Mo-Bile
-                if (isDemonicMoBileRequired && !isDemonicMoBileEquipped) {
+                // Specific condition for Soul Lumber and cars that can deliver it
+                if (route.lumberType === 'soulLumber' && !canDeliverSoulLumber) {
                     deliveryButtonDisabled = true;
                     deliveryButtonClasses = 'bg-gray-600 cursor-not-allowed';
-                    deliveryButtonText = 'Requires Demonic Mo-Bile';
+                    deliveryButtonText = 'Requires Soul Lumber Capable Vehicle'; // More generic message
                 }
 
 
@@ -1040,7 +1068,7 @@
                 <h2 class="text-2xl font-bold text-indigo-400 mb-4">Your Home</h2>
                 <div class="flex flex-wrap gap-2 mb-4">
                     <button id="furnitureShopBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
-                        ${showFurnitureShop ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-600 hover:bg-gray-500'}">
+                        ${isFurnitureShopOpen ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-600 hover:bg-gray-500'}">
                         Shop
                     </button>
                     <button id="changeHomeBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
@@ -1073,8 +1101,8 @@
 
             // Event Listeners for sub-view buttons
             homeControlsDiv.querySelector('#furnitureShopBtn').addEventListener('click', () => {
-                showFurnitureShop = !showFurnitureShop; // Toggle visibility
-                homeSubView = 'furnitureShop'; // Ensure this is the active sub-view
+                isFurnitureShopOpen = !isFurnitureShopOpen; // Toggle visibility
+                homeSubView = isFurnitureShopOpen ? 'furnitureShop' : 'none'; // Set sub-view based on toggle
                 isRearrangingFurniture = false; // Exit rearrange mode when toggling shop
                 isDeletingFurniture = false; // Exit delete mode when toggling shop
                 selectedFurnitureToMoveId = null;
@@ -1084,7 +1112,7 @@
             });
             homeControlsDiv.querySelector('#changeHomeBtn').addEventListener('click', () => {
                 homeSubView = 'changeHome';
-                showFurnitureShop = false; // Hide shop when changing to other sub-views
+                isFurnitureShopOpen = false; // Close shop when changing to other sub-views
                 isRearrangingFurniture = false; // Exit rearrange mode when switching sub-views
                 isDeletingFurniture = false; // Exit delete mode when switching sub-views
                 selectedFurnitureToMoveId = null;
@@ -1093,7 +1121,7 @@
             });
             homeControlsDiv.querySelector('#buyHousesBtn').addEventListener('click', () => {
                 homeSubView = 'buyHouses';
-                showFurnitureShop = false; // Hide shop when changing to other sub-views
+                isFurnitureShopOpen = false; // Close shop when changing to other sub-views
                 isRearrangingFurniture = false; // Exit rearrange mode when switching sub-views
                 isDeletingFurniture = false; // Exit delete mode when switching sub-views
                 selectedFurnitureToMoveId = null;
@@ -1107,6 +1135,7 @@
                 isDeletingFurniture = false; // Exit delete mode
                 selectedFurnitureType = null;
                 selectedFurnitureToMoveId = null;
+                isFurnitureShopOpen = false; // Close shop when rearranging
                 renderApp();
                 saveGame();
             });
@@ -1116,12 +1145,13 @@
                 isRearrangingFurniture = false; // Exit rearrange mode
                 selectedFurnitureType = null;
                 selectedFurnitureToMoveId = null;
+                isFurnitureShopOpen = false; // Close shop when deleting
                 renderApp();
                 saveGame();
             });
 
-            // Render content based on homeSubView and showFurnitureShop
-            if (homeSubView === 'furnitureShop' && showFurnitureShop) {
+            // Render content based on homeSubView
+            if (homeSubView === 'furnitureShop') {
                 homeSubViewContent.appendChild(renderFurnitureShopContent());
             } else if (homeSubView === 'changeHome') {
                 homeSubViewContent.appendChild(renderChangeHomeContent());
@@ -1251,7 +1281,7 @@
                 selectedFurnitureType = null; // Clear selected item when changing category
                 renderApp();
             });
-            contentDiv.querySelector('#petsCategoryBtn').addEventListener('click', () => {
+            contentDiv.querySelector('#petsCategoryBtn').addEventListener('click', () => { // Changed from () => to (e) => to be consistent, though e is not used
                 currentFurnitureCategory = 'pets';
                 selectedFurnitureType = null; // Clear selected item when changing category
                 renderApp();
@@ -1419,6 +1449,55 @@
             return biomesDiv;
         };
 
+        // New: renderInventoryView function
+        const renderInventoryView = () => {
+            const inventoryDiv = document.createElement('div');
+            inventoryDiv.className = "w-full bg-gray-700 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-auto";
+            inventoryDiv.style.height = 'auto'; // Allow content to dictate height
+            inventoryDiv.innerHTML = `
+                <h2 class="text-3xl font-bold text-gray-200 mb-6">Your Inventory</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-4xl">
+                    <div class="text-3xl font-semibold p-6 bg-yellow-900 rounded-lg shadow-md flex items-center justify-center">
+                        <img src="${woodIconUrl}" alt="Wood Icon" class="currency-icon w-10 h-10" /> Lumber: <span class="text-yellow-400 ml-2" id="woodCount">${woodCount}</span>
+                    </div>
+                    <div class="text-3xl font-semibold p-6 bg-green-900 rounded-lg shadow-md flex items-center justify-center">
+                        <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon w-10 h-10" /> Cash: <span class="text-green-400 ml-2" id="moneyCount">${moneyCount}</span>
+                    </div>
+                    <div class="text-3xl font-semibold p-6 bg-purple-900 rounded-lg shadow-md flex items-center justify-center ${grapeLumberCount > 0 || lumberMillUpgraded ? 'flex' : 'hidden'}">
+                        <img src="${grapeLumberIconUrl}" alt="Grape Lumber Icon" class="currency-icon w-10 h-10" /> Grape Lumber: <span class="text-purple-400 ml-2" id="grapeLumberCount">${grapeLumberCount}</span>
+                    </div>
+                    <div class="text-3xl font-semibold p-6 bg-red-900 rounded-lg shadow-md flex items-center justify-center ${soulLumberCount > 0 ? 'flex' : 'hidden'}">
+                        <img src="${soulLumberIconUrl}" alt="Soul Lumber Icon" class="currency-icon w-10 h-10" /> Soul Lumber: <span class="text-red-400 ml-2" id="soulLumberCount">${soulLumberCount}</span>
+                    </div>
+                    <div class="text-3xl font-semibold p-6 bg-gray-900 rounded-lg shadow-md flex items-center justify-center ${totalIdleWoodPerSecond > 0 || totalIdleSoulLumberPerSecond > 0 ? 'flex' : 'hidden'}">
+                        <img src="${woodIconUrl}" alt="Wood Icon" class="currency-icon w-10 h-10" /> Idle Wood Rate: <span class="text-yellow-400 ml-2" id="idleWoodRate">${totalIdleWoodPerSecond}/sec</span>
+                    </div>
+                    <div class="text-3xl font-semibold p-6 bg-gray-900 rounded-lg shadow-md flex items-center justify-center ${totalIdleSoulLumberPerSecond > 0 ? 'flex' : 'hidden'}">
+                        <img src="${soulLumberIconUrl}" alt="Soul Lumber Icon" class="currency-icon w-10 h-10" /> Idle Soul Lumber Rate: <span class="text-red-400 ml-2" id="idleSoulLumberRate">${totalIdleSoulLumberPerSecond}/sec</span>
+                    </div>
+                    
+                    <!-- Current Axe Display (Moved from main app) -->
+                    <div id="currentAxeDisplay" class="text-xl font-semibold p-6 bg-blue-900 rounded-lg shadow-md flex flex-col items-center justify-center space-y-2">
+                        <!-- Content populated by updateCurrencyDisplay -->
+                    </div>
+
+                    <!-- Current Car Display (Moved from main app) -->
+                    <div id="currentCarDisplay" class="text-xl font-semibold p-6 bg-blue-900 rounded-lg shadow-md flex flex-col items-center justify-center space-y-2">
+                        <!-- Content populated by updateCurrencyDisplay -->
+                    </div>
+                </div>
+                
+                <!-- Removed: Turn off all generators button -->
+            `;
+            // Call updateCurrencyDisplay to populate the axe and car displays as well
+            updateCurrencyDisplay(); 
+
+            // Removed: Event listener for the new button
+            // inventoryDiv.querySelector('#turnOffGeneratorsBtn').addEventListener('click', turnOffAllGenerators);
+
+            return inventoryDiv;
+        };
+
 
         // --- Core Game Logic Functions ---
         const chopTree = (treeId, event) => {
@@ -1512,6 +1591,7 @@
                 isRearrangingFurniture = false; // Exit rearrange mode if buying new furniture
                 isDeletingFurniture = false; // Exit delete mode if buying new furniture
                 selectedFurnitureToMoveId = null; // Clear any picked up furniture
+                isFurnitureShopOpen = false; // Close shop after buying an item
                 renderApp(); // Re-render to update money and show placement hint
                 saveGame(); // Save game state after buying furniture
                 checkVampireForestUnlock(); // Check for unlock after buying furniture
@@ -1613,9 +1693,11 @@
             const route = deliveryRoutes.find(r => r.id === routeId);
             if (!route) return;
 
-            // New: Check if Soul Lumber requires Demonic Mo-Bile
-            if (route.lumberType === 'soulLumber' && currentCarId !== 'demonic_mo_bile') {
-                console.log("You need the Demonic Mo-Bile to deliver Soul Lumber!");
+            const equippedCar = carItems.find(c => c.id === currentCarId);
+
+            // Check if Soul Lumber requires a capable vehicle
+            if (route.lumberType === 'soulLumber' && (!equippedCar || !equippedCar.deliversSoulLumber)) {
+                console.log("You need a vehicle capable of delivering Soul Lumber for this route!");
                 return;
             }
 
@@ -1634,9 +1716,8 @@
                 return;
             }
 
-            const currentCar = carItems.find(car => car.id === currentCarId);
-            // Delivery time is now fixed per route, not affected by car speed
-            const effectiveDeliveryTime = route.baseTime; 
+            // Delivery time is now affected by the car's deliverySpeedMultiplier
+            const effectiveDeliveryTime = route.baseTime / equippedCar.deliverySpeedMultiplier; 
 
             isDelivering = true;
             currentDeliveryRouteId = routeId;
@@ -1675,7 +1756,7 @@
                     }
                     
                     // Money reward now includes the car's money bonus multiplier
-                    moneyCount += (route.moneyReward * currentCar.moneyBonusMultiplier);
+                    moneyCount += (route.moneyReward * equippedCar.moneyBonusMultiplier);
 
                     isDelivering = false;
                     deliveryProgress = 0;
@@ -1687,7 +1768,7 @@
                         deliverySound.stop();
                     }
 
-                    console.log(`Delivered ${route.lumberRequired} ${route.lumberType} for ${route.moneyReward * currentCar.moneyBonusMultiplier} money!`);
+                    console.log(`Delivered ${route.lumberRequired} ${route.lumberType} for ${route.moneyReward * equippedCar.moneyBonusMultiplier} money.`);
                     renderApp(); // Full re-render to update counts and hide progress bar
                     saveGame(); // Save game state after delivery
                 }
@@ -2251,13 +2332,29 @@
                     if (totalIdleSoulLumberPerSecond > 0) {
                         soulLumberCount += totalIdleSoulLumberPerSecond;
                     }
-                    updateCurrencyDisplay();
+                    // Only update the display if the inventory view is currently active
+                    if (currentView === 'inventory') {
+                        updateCurrencyDisplay();
+                    }
                     // No need to save game every second, save on other actions
                 }, 1000); // Every 1 second
                 console.log(`Idle generation started/updated: ${totalIdleWoodPerSecond} wood/second, ${totalIdleSoulLumberPerSecond} soul lumber/second.`);
             } else {
                 console.log("No active generators, idle generation stopped.");
             }
+        };
+
+        // New: Function to turn off all generators
+        const turnOffAllGenerators = () => {
+            if (idleWoodGenerationInterval) {
+                clearInterval(idleWoodGenerationInterval);
+                idleWoodGenerationInterval = null;
+            }
+            totalIdleWoodPerSecond = 0;
+            totalIdleSoulLumberPerSecond = 0;
+            console.log("All generators turned off.");
+            renderApp(); // Re-render to update display and button state
+            saveGame(); // Save game state after turning off generators
         };
 
 
@@ -2274,7 +2371,7 @@
                 ownedHouses: ownedHouses,     // Save owned houses
                 allHousesFurniture: allHousesFurniture, // Save all furniture for all houses
                 currentFurnitureCategory: currentFurnitureCategory, // Save the current furniture category
-                showFurnitureShop: showFurnitureShop, // Save the visibility state of the furniture shop
+                isFurnitureShopOpen: isFurnitureShopOpen, // New: Save the furniture shop open state
                 biomesUnlocked: biomesUnlocked, // Save biomes unlocked state
                 lumberMillUpgraded: lumberMillUpgraded, // Save lumber mill upgrade state
                 vampireForestUnlocked: vampireForestUnlocked, // New: Save vampire forest unlock state
@@ -2329,7 +2426,7 @@
                     }
 
                     currentFurnitureCategory = gameState.currentFurnitureCategory || 'furniture'; // Load current furniture category
-                    showFurnitureShop = gameState.showFurnitureShop !== undefined ? gameState.showFurnitureShop : false; // Load showFurnitureShop state
+                    isFurnitureShopOpen = gameState.isFurnitureShopOpen !== undefined ? gameState.isFurnitureShopOpen : false; // New: Load furniture shop open state, default to false
                     biomesUnlocked = gameState.biomesUnlocked !== undefined ? gameState.biomesUnlocked : false; // Load biomes unlocked state
                     lumberMillUpgraded = gameState.lumberMillUpgraded !== undefined ? gameState.lumberMillUpgraded : false; // Load lumber mill upgrade state
                     vampireForestUnlocked = gameState.vampireForestUnlocked !== undefined ? gameState.vampireForestUnlocked : false; // New: Load vampire forest unlock state
@@ -2365,7 +2462,7 @@
                 ownedHouses = ['basic_home'];
                 allHousesFurniture = { 'basic_home': [] }; // Reset furniture for basic home
                 currentFurnitureCategory = 'furniture'; // Reset furniture category
-                showFurnitureShop = false; // Reset showFurnitureShop
+                isFurnitureShopOpen = false; // New: Reset furniture shop open state
                 biomesUnlocked = false; // Reset biomes unlocked state
                 lumberMillUpgraded = false; // Reset lumber mill upgrade state
                 vampireForestUnlocked = false; // New: Reset vampire forest unlock state
@@ -2442,49 +2539,6 @@
             header.textContent = "Lumber Tycoon";
             appRoot.appendChild(header);
 
-            // Currency Display
-            const currencyDisplay = document.createElement('div');
-            currencyDisplay.className = "flex justify-center space-x-8 mb-6";
-            currencyDisplay.innerHTML = `
-                <div class="text-2xl font-semibold p-4 bg-yellow-900 rounded-lg shadow-md flex items-center">
-                    <img src="${woodIconUrl}" alt="Wood Icon" class="currency-icon" /> Lumber: <span class="text-yellow-400" id="woodCount">${woodCount}</span>
-                </div>
-                <div class="text-2xl font-semibold p-4 bg-green-900 rounded-lg shadow-md flex items-center">
-                    <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon" /> Cash: <span class="text-green-400" id="moneyCount">${moneyCount}</span>
-                </div>
-                <!-- New: Grape Lumber Display - hidden by default, shown if grapeLumberCount > 0 || lumberMillUpgraded -->
-                <div class="text-2xl font-semibold p-4 bg-purple-900 rounded-lg shadow-md flex items-center ${grapeLumberCount > 0 || lumberMillUpgraded ? 'flex' : 'hidden'}">
-                    <img src="${grapeLumberIconUrl}" alt="Grape Lumber Icon" class="currency-icon" /> Grape Lumber: <span class="text-purple-400" id="grapeLumberCount">${grapeLumberCount}</span>
-                </div>
-                <!-- New: Soul Lumber Display - hidden by default, shown if soulLumberCount > 0 -->
-                <div class="2xl font-semibold p-4 bg-red-900 rounded-lg shadow-md flex items-center ${soulLumberCount > 0 ? 'flex' : 'hidden'}">
-                    <img src="${soulLumberIconUrl}" alt="Soul Lumber Icon" class="currency-icon" /> Soul Lumber: <span class="text-red-400" id="soulLumberCount">${soulLumberCount}</span>
-                </div>
-                <!-- Display for Idle Wood Generation Rate -->
-                <div class="text-2xl font-semibold p-4 bg-gray-900 rounded-lg shadow-md flex items-center ${totalIdleWoodPerSecond > 0 ? 'flex' : 'hidden'}">
-                    <img src="${woodIconUrl}" alt="Wood Icon" class="currency-icon" /> Idle Wood Rate: <span class="text-yellow-400">${totalIdleWoodPerSecond}/sec</span>
-                </div>
-                <!-- New: Display for Idle Soul Lumber Generation Rate -->
-                <div class="2xl font-semibold p-4 bg-gray-900 rounded-lg shadow-md flex items-center ${totalIdleSoulLumberPerSecond > 0 ? 'flex' : 'hidden'}">
-                    <img src="${soulLumberIconUrl}" alt="Soul Lumber Icon" class="currency-icon" /> Idle Soul Lumber Rate: <span class="text-red-400">${totalIdleSoulLumberPerSecond}/sec</span>
-                </div>
-            `;
-            appRoot.appendChild(currencyDisplay);
-
-            // Current Axe Display
-            const currentAxeDisplayDiv = document.createElement('div');
-            currentAxeDisplayDiv.id = 'currentAxeDisplay';
-            currentAxeDisplayDiv.className = "text-lg font-semibold mb-6 p-3 bg-blue-900 rounded-lg shadow-md flex items-center space-x-2";
-            appRoot.appendChild(currentAxeDisplayDiv);
-            updateAxeDisplay(); // Call to populate axe display
-
-            // Current Car Display (New)
-            const currentCarDisplayDiv = document.createElement('div');
-            currentCarDisplayDiv.id = 'currentCarDisplay';
-            currentCarDisplayDiv.className = "text-lg font-semibold mb-6 p-3 bg-blue-900 rounded-lg shadow-md flex items-center space-x-2";
-            appRoot.appendChild(currentCarDisplayDiv);
-            updateCarDisplay(); // Call to populate car display
-
             // Navigation Buttons
             appRoot.appendChild(setupNavigation());
 
@@ -2517,6 +2571,9 @@
                 case 'deliveries': // New case for deliveries
                     appRoot.appendChild(renderDeliveriesView());
                     break;
+                case 'inventory': // New case for inventory
+                    appRoot.appendChild(renderInventoryView());
+                    break;
                 default:
                     appRoot.appendChild(renderTreeChoppingView('forest'));
             }
@@ -2531,6 +2588,12 @@
 
         // Save game state before the user leaves or refreshes the page
         window.addEventListener('beforeunload', saveGame);
+
+        // Prevent double-tap zoom on iOS and other mobile browsers
+        // Add this outside of window.onload to ensure it's active immediately
+        document.documentElement.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+        }, { passive: false });
     </script>
 </body>
 </html>

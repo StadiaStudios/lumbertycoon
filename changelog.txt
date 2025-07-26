@@ -1,7 +1,12 @@
 DLCs
-- Green Forest
-- Purple Forest
 - Demonics
+
+V1.3.1- - - More Complete Version for the Demonics DLC.
+Moves Lumber Counts to a new Inventory implement. ATVs Now Deliver 20% Faster.
+Fixes Insanely high price for Demonic Mo-Bile. Fixed Mobile buttons Layout. Fixes
+Demonic Table size. Fixes "Vampire Forest" to "Demonic Forest". Fixes Double Tap Zoom
+on IPhones. Adds Nightcrawler car to shop which can also deliver soul lumber. 
+Demonic Axe is now 850 Cash.
 
 V1.2.0- - -Demonics
 Demonics DLC Includes Vampire Furniture in the shop.
