@@ -1,6 +1,13 @@
 DLCs
 - Demonics
 
+V1.5.2- - -
+Debug Page, Commands list:
+- 1. debugresetprog | Resets all progress
+- 2. debugcheat(cheatname) | Activate cheats
+- 3. debugremove 100 | Remove Cash can change custom amount
+Fixes Current Axe, & Current Car Display Bugs.
+
 V1.4.2- - -
 Fixes cant scroll on Smaller screens in Biomes. Fixes Lumbermill All Lumber Mill Related Problems.
 
