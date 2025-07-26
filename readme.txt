@@ -1,0 +1,21 @@
+Thank you for downloading Lumber Tycoon by StadiaStudios. To play the game you need to extract the zip folder.
+And run index.html in your browser. If you want to download on mobile click your browsers share button then.
+Add to Homescreen. If your unsure on how to play here are the basics:
+
+Chop trees in the chop trees section.
+sell lumber in the Lumber mill section. (100 Lumber unlocks Biomes).
+Upgrade your axe.
+Unlock biomes and Unlock different types of Lumber.
+Buy the demonic pool to get the Demonics DLC Quest.
+Cut red trees. 
+Buy a Car or ATV.
+make deliveries.
+
+If your unsure on Debugging. the Commands are listed below:
+other cheats are in the cheats.txt file.
+
+- 1. debugresetprog | Resets all progress
+- 2. debugcheat(cheatname) | Activate cheats (You have to guess it! Good Luck.)
+- 3. debugremove 100 | Remove Cash can change custom amount
+- 4. debugchangelog | Displays Changelog, Only works in browser version
+- 5. debugdownload | Takes you to github page to Download/Updates

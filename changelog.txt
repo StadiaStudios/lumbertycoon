@@ -1,7 +1,12 @@
 DLCs
 - Demonics
 
-V1.5.2- - -
+V1.6.2- - -More Complete app version
+Soul Lumber takes longer. Soul Trees take longer to cut. Vehicles and Axes have been tweaked.
+Vampire Forest is now "Soul Forest". Adds 5 new commands to the debug console. Also makes
+console canvas bigger.
+
+V1.5.2- - -Debug Console
 Debug Page, Commands list:
 - 1. debugresetprog | Resets all progress
 - 2. debugcheat(cheatname) | Activate cheats
@@ -13,7 +18,7 @@ Fixes Current Axe, & Current Car Display Bugs.
 V1.4.2- - -
 Fixes cant scroll on Smaller screens in Biomes. Fixes Lumbermill All Lumber Mill Related Problems.
 
-V1.3.1- - - More Complete Version for the Demonics DLC.
+V1.3.1- - -More Complete Version for the Demonics DLC.
 Moves Lumber Counts to a new Inventory implement. ATVs Now Deliver 20% Faster.
 Fixes Insanely high price for Demonic Mo-Bile. Fixed Mobile buttons Layout. Fixes
 Demonic Table size. Fixes "Vampire Forest" to "Demonic Forest". Fixes Double Tap Zoom

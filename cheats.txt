@@ -1,0 +1,12 @@
+Misc Commands- - - 
+debugcheatmakemerich | gives 10k
+debugcheatunlockbiomes | Unlocks Biomes, Without completing first unlock.
+debugresetprog | Resets all progress
+debugremove 100 | Remove Cash can change custom amount
+debugchangelog | Displays Changelog, Only works in browser version
+debugdownload | Takes you to github page to Download/Updates
+
+Give Commands- - - 
+debug give soul-lumber(1-120)
+debug give normal-lumber(1-120)
+debug give grape-lumber(1-120)
