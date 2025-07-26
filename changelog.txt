@@ -1,6 +1,9 @@
 DLCs
 - Demonics
 
+V1.5.2- - -
+Adds JS Secret Cheat Codes. "Mobile: Swipe Gesture. PC: Keysdown Code".\
+
 V1.4.2- - -
 Fixes cant scroll on Smaller screens in Biomes. Fixes Lumbermill All Lumber Mill Related Problems.
 Fixes Amount Keyboard disable on mobile.
@@ -18,3 +21,6 @@ Includes Vampire Forest. Soul Lumber. And Delivery places.
 Adds Cars Dealership, And a Special Demonic Mo-Bile used for vampire deliveries.
 Adds new Demonic Axe.New Demonic Home. Demonic Furniture Demonic Chest
 where people can store Soul Lumber.
+
+V1.0.0- - -Original
+Lumber Tycoon! Cut Trees. Upgrade Axe. Buy Homes. Customize Homes.
