@@ -10,7 +10,7 @@
 
     <!-- PWA Meta Tags for iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Lumber Tycoon | STADIASTUDIOS">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0c0a09"/> <!-- Updated theme color for dark theme (stone-950) -->
@@ -447,7 +447,7 @@
 
             // Load purchase sound
             purchaseSound = new Tone.Player({
-                url: "sfx/purchase.mp3",
+                url: "sfx/cashspend.mp3",
                 onload: () => addDebugLog("Purchase sound loaded."),
                 onerror: (e) => addDebugLog(`Error loading purchase sound: ${e}`)
             }).toDestination();
