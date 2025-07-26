@@ -16,7 +16,6 @@
     <meta name="apple-mobile-web-app-title" content="Lumber Tycoon">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a202c"/>
-    <script src="cheatCodes.js"></script>
 
     <style>
         body {
@@ -793,12 +792,9 @@
                         <div class="flex items-center space-x-2">
                             <label for="sellAmount" class="text-lg font-medium text-gray-100">Sell:</label>
                             <input
-                                type="text"
-                                pattern="[0-9]*"
-                                inputmode="numeric"
+                                type="number"
                                 id="sellAmount"
                                 min="0"
-                                max="${woodCount}"
                                 value="${sellWoodAmount}"
                                 class="w-24 p-2 border border-gray-600 rounded-md text-center text-lg font-semibold bg-gray-700 text-gray-100"
                                 ${isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}
@@ -839,12 +835,9 @@
                         <div class="flex items-center space-x-2">
                             <label for="sellGrapeAmount" class="text-lg font-medium text-gray-100">Sell:</label>
                             <input
-                                type="text"
-                                pattern="[0-9]*"
-                                inputmode="numeric"
+                                type="number"
                                 id="sellGrapeAmount"
                                 min="0"
-                                max="${grapeLumberCount}"
                                 value="${sellGrapeWoodAmount}"
                                 class="w-24 p-2 border border-gray-600 rounded-md text-center text-lg font-semibold bg-gray-700 text-gray-100"
                                 ${isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}
@@ -2672,110 +2665,11 @@
             }
         };
 
-        // --- Cheat Code Implementation ---
-        const CHEAT_MONEY_AMOUNT = 10000;
-
-        // Mobile Swipe Cheat Code
-        let startX = 0;
-        let startY = 0;
-        let downSwipes = 0;
-        let rightSwipes = 0;
-        const swipeThreshold = 50; // Minimum distance for a swipe to register
-        const swipeTimeout = 1000; // Max time between swipes in a sequence (1 second)
-        let lastSwipeTime = 0;
-
-        const resetSwipeCheat = () => {
-            downSwipes = 0;
-            rightSwipes = 0;
-            lastSwipeTime = 0;
-        };
-
-        const handleTouchStart = (e) => {
-            if (e.touches.length === 1) {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-                // Reset if too much time has passed since the last swipe
-                if (Date.now() - lastSwipeTime > swipeTimeout) {
-                    resetSwipeCheat();
-                }
-            }
-        };
-
-        const handleTouchEnd = (e) => {
-            if (e.changedTouches.length === 1) {
-                const endX = e.changedTouches[0].clientX;
-                const endY = e.changedTouches[0].clientY;
-
-                const diffX = endX - startX;
-                const diffY = endY - startY;
-
-                // Check for down swipe
-                if (diffY > swipeThreshold && Math.abs(diffX) < swipeThreshold) {
-                    downSwipes++;
-                    rightSwipes = 0; // Reset right swipes if a down swipe occurs
-                    lastSwipeTime = Date.now();
-                } 
-                // Check for right swipe
-                else if (diffX > swipeThreshold && Math.abs(diffY) < swipeThreshold) {
-                    rightSwipes++;
-                    // Only increment right swipes if we have at least one down swipe
-                    if (downSwipes > 0) { 
-                        lastSwipeTime = Date.now();
-                    } else {
-                        resetSwipeCheat(); // Reset if right swipe comes before down swipes
-                    }
-                } else {
-                    resetSwipeCheat(); // Reset if not a clear down or right swipe
-                }
-
-                // Check for cheat code activation
-                if (downSwipes >= 5 && rightSwipes >= 5) {
-                    moneyCount += CHEAT_MONEY_AMOUNT;
-                    showMessage(`CHEAT ACTIVATED! +${CHEAT_MONEY_AMOUNT} Money!`, 'success');
-                    updateCurrencyDisplay();
-                    saveGame();
-                    resetSwipeCheat(); // Reset after successful activation
-                }
-            }
-        };
-
-        // Keyboard Cheat Code
-        const KEYBOARD_CHEAT_CODE = "makemearichman";
-        let keyboardCheatSequence = "";
-
-        const handleKeyDown = (e) => {
-            // Only consider alphanumeric characters for the cheat code
-            if (e.key.match(/^[a-zA-Z0-9]$/)) {
-                keyboardCheatSequence += e.key.toLowerCase();
-            } else {
-                // Reset sequence if a non-alphanumeric key is pressed
-                keyboardCheatSequence = "";
-            }
-
-            // Keep the sequence length limited to the cheat code length
-            if (keyboardCheatSequence.length > KEYBOARD_CHEAT_CODE.length) {
-                keyboardCheatSequence = keyboardCheatSequence.substring(keyboardCheatSequence.length - KEYBOARD_CHEAT_CODE.length);
-            }
-
-            if (keyboardCheatSequence === KEYBOARD_CHEAT_CODE) {
-                moneyCount += CHEAT_MONEY_AMOUNT;
-                showMessage(`CHEAT ACTIVATED! +${CHEAT_MONEY_AMOUNT} Money!`, 'success');
-                updateCurrencyDisplay();
-                saveGame();
-                keyboardCheatSequence = ""; // Reset after successful activation
-            }
-        };
-
         // --- Initialization ---
         window.onload = () => {
             setupAudio(); // Initialize audio
             loadGame(); // Load game state before initial render
             renderApp(); // Initial render with loaded or default state
-
-            // Add cheat code event listeners
-            document.documentElement.addEventListener('touchstart', handleTouchStart, { passive: true });
-            document.documentElement.addEventListener('touchend', handleTouchEnd, { passive: true });
-            document.addEventListener('keydown', handleKeyDown);
         };
 
         // Save game state before the user leaves or refreshes the page
