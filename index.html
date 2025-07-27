@@ -62,12 +62,6 @@
             background: #78716c; /* Tailwind stone-500 */
         }
 
-        /* For Firefox */
-        html {
-            scrollbar-width: thin; /* "auto" or "thin" */
-            scrollbar-color: #57534e #292524; /* thumb color track color */
-        }
-
         /* New: Custom cursor for buttons on hover */
         button:hover {
             cursor: url("cursor-hover.ico"), pointer;
@@ -205,6 +199,10 @@
         .progress-bar-red {
             background-color: #ef4444; /* A shade of red (red-500) */
         }
+        /* New style for quest progress bar (orange) */
+        .progress-bar-orange {
+            background-color: #f97316; /* Tailwind orange-500 */
+        }
 
         /* Modal Styles */
         .modal-overlay {
@@ -331,7 +329,7 @@
     <div id="click-to-start-overlay" class="hidden">
         <h2 class="text-4xl font-bold text-stone-100 mb-8">Lumber Tycoon</h2>
         <p class="text-xl text-stone-300 mb-8">Welcome to LumberTycoon! Click Start Game to enable BG Music</p>
-        <button id="startButton" class="px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full shadow-lg transition-all duration-200">
+        <button id="startButton" class="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-full shadow-lg transition-all duration-200">
             Start Game
         </button>
     </div>
@@ -357,18 +355,32 @@
 
     <script type="module">
         // Game version constant
-        const GAME_VERSION = "1.9.3";
+        const GAME_VERSION = "1.10.3";
 
         // Game state variables
         let woodCount = 0;
         let moneyCount = 0;
         let grapeLumberCount = 0; // New: Counter for grape lumber
         let soulLumberCount = 0; // New: Counter for Soul Lumber
-        let currentView = 'forest'; // 'forest', 'home', 'lumberMill', 'axeShop', 'biomes', 'purpleForest', 'carShop', 'deliveries', 'vampireForest', 'inventory', 'debug', 'settings', 'shops'
+        let rustyCanCount = 0; // New: Counter for Rusty Can
+        let garbageCount = 0; // New: Counter for Garbage
+        let screwsCount = 0; // New: Counter for Screws
+
+        // Inventory Capacity Variables
+        const DEFAULT_INVENTORY_CAPACITY = 500; // Default backpack capacity in kg
+        const LUMBER_ITEM_WEIGHT = 0.25; // Weight of each regular and grape lumber item in kg
+        const SOUL_LUMBER_ITEM_WEIGHT = 0.50; // Weight of each soul lumber item in kg
+        let inventoryCapacity = DEFAULT_INVENTORY_CAPACITY; // Current total inventory capacity
+        let currentInventoryWeight = 0; // Current weight of items in inventory
+
+        let currentView = 'forest'; // 'forest', 'home', 'lumberMill', 'axeShop', 'biomes', 'purpleForest', 'carShop', 'deliveries', 'vampireForest', 'inventory', 'debug', 'settings', 'shops', 'quests', 'buySellShop', 'backpackShop'
         let lastLocation = 'forest'; // New: To store the last visited location
         let selectedFurnitureType = null; // For buying new furniture
         let sellWoodAmount = 1;
         let sellGrapeWoodAmount = 1; // New: Amount of grape lumber to sell
+        let sellRustyCanAmount = 1; // New: Amount of Rusty Can to sell
+        let sellGarbageAmount = 1; // New: Amount of Garbage to sell
+        let sellScrewsAmount = 1; // New: Amount of Screws to sell
 
         let isCutting = false;
         let cuttingProgress = 0; // 0-100
@@ -393,6 +405,13 @@
         let sellingGrapeProgress = 0; // New: Progress for selling grape lumber
         let sellingGrapeIntervalRef = null; // New: Interval ref for selling grape lumber
         let currentSellGrapeAmount = 0; // New: Amount of grape lumber being sold
+
+        // New state variables for selling junk items progress
+        let isSellingJunk = false;
+        let sellingJunkProgress = 0;
+        let sellingJunkIntervalRef = null;
+        let currentSellJunkAmount = 0;
+        let currentSellJunkType = '';
 
         // House related state
         let currentHouseId = 'basic_home'; // Default house
@@ -421,6 +440,18 @@
         let currentDeliveryRouteId = null; // ID of the route being delivered
         let currentDeliveryAmount = 0; // Amount of wood being delivered
 
+        // New Quest state variables
+        let questsUnlocked = true; // Changed to true to make quests show up at the start
+        let isQuesting = false; // State for quest progress
+        let questProgress = 0; // 0-100
+        let questIntervalRef = null;
+        let currentQuestId = null; // ID of the quest being undertaken
+        let currentQuestLumberRequired = 0; // Amount of lumber required for the current quest
+
+        // Backpack state variables
+        let ownedBackpacks = ['basic_backpack']; // Start with basic backpack
+        let currentBackpackId = 'basic_backpack'; // Default backpack
+
         // Idle Generation Variables
         let idleWoodGenerationInterval = null;
         let totalIdleWoodPerSecond = 0; // Sum of wood generated by all active generators
@@ -443,7 +474,7 @@
         let isBackgroundMusicPlaying = false;
 
         // Tone.js Players for sound effects
-        let clickSound;
+        let clickSound; // This will now be used for hover sounds
         let purchaseSound;
 
         // Constants for touch-hold functionality
@@ -464,7 +495,7 @@
                 addDebugLog("Tone.js audio context started.");
             }
 
-            // Load click sound
+            // Load click sound (now used for hover)
             clickSound = new Tone.Player({
                 url: "sfx/navbuttonclick.mp3",
                 onload: () => addDebugLog("Click sound loaded."),
@@ -479,16 +510,27 @@
             }).toDestination();
         };
 
-        // Function to play click sound
-        const playClickSound = () => {
+        // Function to play click sound on hover
+        const playHoverSound = () => {
             if (clickSound && clickSound.loaded) {
+                // Stop if already playing to prevent layering
+                if (clickSound.state === 'started') {
+                    clickSound.stop();
+                }
                 clickSound.start();
             } else {
-                addDebugLog("Click sound not loaded or not initialized.");
+                addDebugLog("Click sound not loaded or not initialized for hover.");
             }
         };
 
-        // Function to play purchase sound
+        // Function to stop click sound on hover out
+        const stopHoverSound = () => {
+            if (clickSound && clickSound.loaded && clickSound.state === 'started') {
+                clickSound.stop();
+            }
+        };
+
+        // Function to play purchase sound (remains on click)
         const playPurchaseSound = () => {
             if (purchaseSound && purchaseSound.loaded) {
                 purchaseSound.start();
@@ -530,10 +572,6 @@
             */
         };
 
-        // Removed setupAudio function
-
-        // Removed playButtonClickSound function
-
         // Local Storage Key
         const LOCAL_STORAGE_KEY = 'lumberTycoonSimulatorSave';
 
@@ -544,39 +582,39 @@
 
         // Furniture data - Updated with explicit width and height for consistent placement
         const furnitureItems = [
-            { id: 'chair', name: 'Chair', moneyCost: 10, imageUrl: 'assets/furniture/chair.png', width: 60, height: 60, category: 'furniture' },
-            { id: 'table', name: 'Table', moneyCost: 23, imageUrl: 'assets/furniture/table.png', width: 90, height: 90, category: 'furniture' },
-            { id: 'dining_table', name: 'Dining Table', moneyCost: 75, imageUrl: 'assets/furniture/dining-table.png', width: 120, height: 80, category: 'furniture' }, // New Dining Table
-            { id: 'bed', name: 'Bed', moneyCost: 80, imageUrl: 'assets/furniture/bed.png', width: 90, height: 100, category: 'furniture' },
-            { id: 'plant', name: 'Plant', moneyCost: 20, imageUrl: 'assets/furniture/plant1.png', width: 60, height: 60, category: 'furniture' },
+            { id: 'chair', name: 'Chair', moneyCost: 100, imageUrl: 'assets/furniture/chair.png', width: 60, height: 60, category: 'furniture' },
+            { id: 'table', name: 'Table', moneyCost: 100, imageUrl: 'assets/furniture/table.png', width: 90, height: 90, category: 'furniture' },
+            { id: 'dining_table', name: 'Dining Table', moneyCost: 100, imageUrl: 'assets/furniture/dining-table.png', width: 120, height: 80, category: 'furniture' }, // New Dining Table
+            { id: 'bed', name: 'Bed', moneyCost: 120, imageUrl: 'assets/furniture/bed.png', width: 90, height: 100, category: 'furniture' },
+            { id: 'plant', name: 'Plant', moneyCost: 100, imageUrl: 'assets/furniture/plant1.png', width: 60, height: 60, category: 'furniture' },
             { id: 'sofa', name: 'Sofa', moneyCost: 130, imageUrl: 'assets/furniture/sofa.png', width: 140, height: 110, category: 'furniture' },
-            { id: 'statue', name: 'Dragon Statue', moneyCost: 500, imageUrl: 'assets/furniture/statue/dragon.png', width: 150, height: 200, category: 'furniture' }, // New statue item
+            { id: 'statue', name: 'Dragon Statue', moneyCost: 1500, imageUrl: 'assets/furniture/statue/dragon.png', width: 150, height: 200, category: 'furniture' }, // New statue item
             { id: 'midas_statue', name: 'Midas Statue', moneyCost: 2500, imageUrl: 'assets/furniture/midas-statue.png', width: 100, height: 180, category: 'furniture' }, // New Midas Statue item
-            { id: 'bookshelf', name: 'Pool', moneyCost: 120, imageUrl: 'assets/furniture/pool.png', width: 100, height: 110, category: 'furniture' }, // New Bookshelf item
-            { id: 'grand_piano', name: 'Water Fountain', moneyCost: 200, imageUrl: 'assets/furniture/water-fountain.png', width: 160, height: 140, category: 'furniture' }, // New Grand Piano item
+            { id: 'bookshelf', name: 'Pool', moneyCost: 400, imageUrl: 'assets/furniture/pool.png', width: 100, height: 110, category: 'furniture' }, // New Bookshelf item
+            { id: 'grand_piano', name: 'Water Fountain', moneyCost: 900, imageUrl: 'assets/furniture/water-fountain.png', width: 160, height: 140, category: 'furniture' }, // New Grand Piano item
             { id: 'dog', name: 'Dog', moneyCost: 200, imageUrl: 'assets/pets/dog.gif', width: 50, height: 50, category: 'pets' },
-            { id: 'dragon', name: 'Dragon', moneyCost: 1000, imageUrl: 'assets/pets/dragon.png', width: 150, height: 130, category: 'pets' }, // Added Dragon pet
-            { id: 'fireplace', name: 'Small Fountain', moneyCost: 180, imageUrl: 'assets/furniture/small-fountain.png', width: 100, height: 100, category: 'furniture' },
-            { id: 'rug', name: 'High End Fountain', moneyCost: 350, imageUrl: 'assets/furniture/extra-large-fountain.png', width: 150, height: 150, category: 'furniture' },
+            { id: 'dragon', name: 'Dragon', moneyCost: 1999, imageUrl: 'assets/pets/dragon.png', width: 150, height: 130, category: 'pets' }, // Added Dragon pet
+            { id: 'fireplace', name: 'Small Fountain', moneyCost: 900, imageUrl: 'assets/furniture/small-fountain.png', width: 100, height: 100, category: 'furniture' },
+            { id: 'rug', name: 'High End Fountain', moneyCost: 1500, imageUrl: 'assets/furniture/extra-large-fountain.png', width: 150, height: 150, category: 'furniture' },
             { id: 'vault', name: 'Gold Fountain', moneyCost: 1500, imageUrl: 'assets/furniture/gold-fountain.png', width: 100, height: 100, category: 'furniture' }, // New Vault item
-            { id: 'pool_table', name: 'Pool Table', moneyCost: 110, imageUrl: 'assets/furniture/pool-table.png', width: 90, height: 80, category: 'furniture' },
-            { id: 'outdoor_pool', name: 'Outdoor Pool', moneyCost: 750, imageUrl: 'assets/furniture/outdoor-pool.png', width: 150, height: 100, category: 'furniture' },
+            { id: 'pool_table', name: 'Pool Table', moneyCost: 150, imageUrl: 'assets/furniture/pool-table.png', width: 90, height: 80, category: 'furniture' },
+            { id: 'outdoor_pool', name: 'Crystal Statue', moneyCost: 750, imageUrl: 'assets/furniture/statue/crystal-statue.png', width: 150, height: 100, category: 'furniture' },
             { id: 'demonic_pool', name: 'Demonic Pool', moneyCost: 2999, imageUrl: 'assets/furniture/demonic-pool.png', width: 140, height: 120, category: 'furniture' },
-            { id: 'chest', name: 'Safe', moneyCost: 50, imageUrl: 'assets/furniture/safe.png', width: 80, height: 80, category: 'furniture' }, // New Chest item
-            { id: 'gun_case', name: 'Gun Case', moneyCost: 100, imageUrl: 'assets/furniture/gun-case.png', width: 90, height: 60, category: 'furniture' }, // Added Gun Case
+            { id: 'chest', name: 'Safe', moneyCost: 300, imageUrl: 'assets/furniture/safe.png', width: 80, height: 80, category: 'furniture' }, // New Chest item
+            { id: 'gun_case', name: 'Gun Case', moneyCost: 800, imageUrl: 'assets/furniture/gun-case.png', width: 90, height: 60, category: 'furniture' }, // Added Gun Case
             { id: 'scare_crow', name: 'Scare Crow', moneyCost: 1299, imageUrl: 'assets/furniture/scare-crow.png', width: 90, height: 150, category: 'furniture' }, // Added Scare Crow
             { id: 'money_wagon', name: 'Money Wagon', moneyCost: 1500, imageUrl: 'assets/furniture/money_wagon.png', width: 120, height: 80, category: 'furniture' }, // New Money Wagon item
             // New Demonic items
             { id: 'demonic_statue', name: 'Demonic Statue', moneyCost: 3500, imageUrl: 'assets/furniture/statue/demonic-statue.png', width: 110, height: 100, category: 'furniture' },
             { id: 'demonic_bed', name: 'Demonic Bed', moneyCost: 1500, imageUrl: 'assets/furniture/demonic-bed.png', width: 170, height: 170, category: 'furniture' },
             // New items added by the model
-            { id: 'demonic_plant', name: 'Demonic Plant', moneyCost: 600, imageUrl: 'assets/furniture/demonic-plant.png', width: 80, height: 100, category: 'furniture' },
-            { id: 'bear_statue', name: 'Bear Statue', moneyCost: 800, imageUrl: 'assets/furniture/statue/bear.png', width: 100, height: 120, category: 'furniture' },
+            { id: 'demonic_plant', name: 'Demonic Plant', moneyCost: 800, imageUrl: 'assets/furniture/demonic-plant.png', width: 80, height: 100, category: 'furniture' },
+            { id: 'bear_statue', name: 'Bear Statue', moneyCost: 1300, imageUrl: 'assets/furniture/statue/bear.png', width: 100, height: 120, category: 'furniture' },
             { id: 'demonic_chest', name: 'Demonic Chest', moneyCost: 2000, imageUrl: 'assets/furniture/demonic-chest.png', width: 60, height: 60, category: 'furniture' }, // New Demonic Chest
             // Added new demonic furniture items
             { id: 'demonic_sofa', name: 'Demonic Sofa', moneyCost: 1800, imageUrl: 'assets/furniture/demonic-sofa.png', width: 150, height: 120, category: 'furniture' },
             { id: 'demonic_table', name: 'Demonic Table', moneyCost: 1000, imageUrl: 'assets/furniture/demonic-table.png', width: 120, height: 80, category: 'furniture' },
-            { id: 'demonic_chair', name: 'Demonic Chair', moneyCost: 700, imageUrl: 'assets/furniture/demonic-chair.png', width: 70, height: 70, category: 'furniture' },
+            { id: 'demonic_chair', name: 'Demonic Chair', moneyCost: 900, imageUrl: 'assets/furniture/demonic-chair.png', width: 70, height: 70, category: 'furniture' },
             // New Generator Item - Corrected imageUrl
             { id: 'basic_idle_generator', name: 'Basic Idle Generator', moneyCost: 3000, imageUrl: 'assets/furniture/generator1.png', width: 120, height: 120, category: 'generators', generatesWoodPerSecond: 0.25 },
             // New Soul Lumber Generator
@@ -589,7 +627,7 @@
             { id: 'pickup_truck', name: 'Pickup Truck', moneyCost: 2000, moneyBonusMultiplier: 1.2, deliverySpeedMultiplier: 1.3, imageUrl: 'assets/vehicles/basic-truck.png', deliversSoulLumber: false }, // 20% more money
             { id: 'delivery_van', name: 'ATV', moneyCost: 3000, moneyBonusMultiplier: 1.5, deliverySpeedMultiplier: 1.5, imageUrl: 'assets/vehicles/atv2.png', deliversSoulLumber: false }, // 50% more money, 30% faster delivery
             { id: 'semi_truck', name: 'ATV', moneyCost: 5000, moneyBonusMultiplier: 5.0, deliverySpeedMultiplier: 5, imageUrl: 'assets/vehicles/atv.png', deliversSoulLumber: false }, // 100% more money, 30% faster delivery
-            { id: 'demonic_mo_bile', name: 'Demonic Mo-Bile', moneyCost: 6999, moneyBonusMultiplier: 2.0, deliverySpeedMultiplier: 13, imageUrl: 'assets/vehicles/demonic-mo-bile.png', deliversSoulLumber: true }, // New Demonic Mo-Bile
+            { id: 'demonic_mo_bile', name: 'Demonic Mo-Bile', moneyCost: 5000, moneyBonusMultiplier: 2.0, deliverySpeedMultiplier: 13, imageUrl: 'assets/vehicles/demonic-mo-bile.png', deliversSoulLumber: true }, // New Demonic Mo-Bile
             { id: 'nightcrawler_atv', name: 'Nightcrawler ATV', moneyCost: 8500, moneyBonusMultiplier: 3.0, deliverySpeedMultiplier: 13, imageUrl: 'assets/vehicles/nightcrawler-atv.png', deliversSoulLumber: true }, // New Nightcrawler ATV
         ];
 
@@ -601,14 +639,24 @@
             { id: 'diamond_axe', name: 'Diamond Axe', moneyCost: 300, cutSpeedMultiplier: 5, imageUrl: 'assets/axes/diamond-axe.png' }, // 400% faster
             { id: 'steel_axe', name: 'Glowing Axe', moneyCost: 325, cutSpeedMultiplier: 5, imageUrl: 'assets/axes/steel-axe.png' }, // New Steel Axe, 5x faster
             { id: 'gold_axe', name: 'Juicy Axe', moneyCost: 500, cutSpeedMultiplier: 20, imageUrl: 'assets/axes/juicey-axe.png' }, // New Gold Axe, 6x faster (6% extra damage)
-            { id: 'mighty_axe', name: 'Phase Axe', moneyCost: 750, cutSpeedMultiplier: 30, imageUrl: 'assets/axes/phase-axe.png' }, // New Mighty Axe, 40% extra damage (20 * 1.4 = 28)
-            { id: 'demonic_axe', name: 'Demonic AXE', moneyCost: 850, cutSpeedMultiplier: 110, imageUrl: 'assets/axes/demonic-axe.png' },
+            { id: 'mighty_axe', name: 'Phase Axe', moneyCost: 1000, cutSpeedMultiplier: 30, imageUrl: 'assets/axes/phase-axe.png' }, // New Mighty Axe, 40% extra damage (20 * 1.4 = 28)
+            { id: 'demonic_axe', name: 'Demonic AXE', moneyCost: 1499, cutSpeedMultiplier: 110, imageUrl: 'assets/axes/demonic-axe.png' },
+        ];
+
+        // Backpack data
+        const backpackItems = [
+            { id: 'basic_backpack', name: 'Basic Backpack', moneyCost: 0, capacityIncrease: 0, imageUrl: 'assets/nav/backpack.png' }, // Default, no extra capacity
+            { id: 'small_backpack', name: 'Blue Backpack', moneyCost: 300, capacityIncrease: 400, imageUrl: 'assets/backpacks/blue-backpack.png' }, // +200kg
+            { id: 'medium_backpack', name: 'Red Camo Backpack', moneyCost: 500, capacityIncrease: 900, imageUrl: 'assets/backpacks/red-camo.png' }, // +500kg
+            { id: 'large_backpack', name: 'Yellow Backpack', moneyCost: 2000, capacityIncrease: 1000, imageUrl: 'assets/backpacks/yellow-backpack.png' }, // +1000kg
+            { id: 'lumberjack_backpack', name: 'Off-White Backpack', moneyCost: 2500, capacityIncrease: 2500, imageUrl: 'assets/backpacks/offwhite-backpack.png' }, // +2500kg
+            { id: 'demonic_backpack', name: 'Demonic Backpack', moneyCost: 5000, capacityIncrease: 5000, imageUrl: 'assets/backpacks/demonic-backpack.png' }, // +5000kg
         ];
 
         // House data
         const houseItems = [
             { id: 'basic_home', name: 'Basic Home', moneyCost: 0, imageUrl: 'assets/homes/basic-home.png' },
-            { id: 'cottage', name: 'Medium Home', moneyCost: 500, imageUrl: 'assets/homes/medium-home.png' },
+            { id: 'cottage', name: 'Medium Home', moneyCost: 3000, imageUrl: 'assets/homes/medium-home.png' },
             { id: 'mansion', name: 'Grand Mansion', moneyCost: 2000, imageUrl: 'assets/homes/grand-mansion.png' },
             { id: 'backyard', name: 'Backyard', moneyCost: 1000, imageUrl: 'assets/homes/backyard.png' }, // New Backyard home
             { id: 'demonic_cottage', name: 'Demonic Cottage', moneyCost: 29999, imageUrl: 'assets/homes/demonic-cottage.png' }, // Demonic Cottage is now purchasable
@@ -623,6 +671,16 @@
             { id: 'spirit_realm_gate', name: 'Spirit Realm Gate', baseTime: 60000, lumberType: 'soulLumber', moneyReward: 1500, lumberRequired: 50, imageUrl: 'assets/delivery/spirit-gate-realm.png' }, // Increased from 15s to 60s
             { id: 'shadow_dimension', name: 'Shadow Dimension', baseTime: 120000, lumberType: 'soulLumber', moneyReward: 3000, lumberRequired: 100, imageUrl: 'assets/delivery/shadow-dimensions.png' }, // Increased from 25s to 120s
         ];
+
+        // New: Quest Data - For building houses
+        const questItems = [
+            { id: 'small_house_quest', name: 'Small House Build', description: 'Build a small wooden house for a new settler.', lumberType: 'wood', lumberRequired: 500, moneyReward: 1500, baseTime: 30000, imageUrl: 'assets/quests/small-house.png' },
+            { id: 'cottage_quest', name: 'Cozy Cottage Construction', description: 'Construct a cozy cottage for a growing family.', lumberType: 'wood', lumberRequired: 1500, moneyReward: 4500, baseTime: 60000, imageUrl: 'assets/quests/cottage.png' },
+            { id: 'mansion_quest', name: 'Grand Mansion Project', description: 'Undertake the grand project of building a mansion.', lumberType: 'wood', lumberRequired: 5000, moneyReward: 15000, baseTime: 120000, imageUrl: 'assets/quests/grand-mansion.png' },
+            { id: 'grape_house_quest', name: 'Purple Dream Home', description: 'Build a unique home using rare grape lumber.', lumberType: 'grapeLumber', lumberRequired: 350, moneyReward: 5000, baseTime: 90000, imageUrl: 'assets/quests/purple-house.png' },
+            { id: 'soul_sanctuary_quest', name: 'Soul Sanctuary', description: 'Construct a mystical sanctuary from soul lumber.', lumberType: 'soulLumber', lumberRequired: 100, moneyReward: 6000, baseTime: 180000, imageUrl: 'assets/quests/soul-sanctuary.png' },
+        ];
+
 
         // Biome Data - Contains all biome definitions and their trees
         const biomesData = {
@@ -666,8 +724,14 @@
         // Conversion rate for wood to money
         const WOOD_TO_MONEY_RATE = 1; // 1 wood = 1 money
         const GRAPE_WOOD_TO_MONEY_RATE = 3.50; // New: 1 grape wood = 3.50 money
+        const RUSTY_CAN_TO_MONEY_RATE = 60; // 1 Rusty Can = 0.5 money
+        const GARBAGE_TO_MONEY_RATE = 50; // 1 Garbage = 0.2 money
+        const SCREWS_TO_MONEY_RATE = 90; // 1 Screws = 1.0 money
+
         const SELL_TIME_PER_WOOD_MS = 100; // 100ms per wood unit to sell
         const SELL_TIME_PER_GRAPE_WOOD_MS = 150; // New: 150ms per grape wood unit to sell
+        const SELL_TIME_PER_JUNK_MS = 50; // 50ms per junk item to sell
+
         const LUMBER_MILL_UPGRADE_COST = 500; // Cost to upgrade the lumber mill
 
         // Icon URLs - Updated to use placeholder images
@@ -675,6 +739,10 @@
         const moneyIconUrl = 'assets/items/cash.png';
         const grapeLumberIconUrl = 'assets/items/purple-lumber.png'; // New: Placeholder icon for Grape Lumber
         const soulLumberIconUrl = 'assets/items/soul-lumber.png'; // New: Placeholder icon for Soul Lumber
+        const rustyCanIconUrl = 'assets/items/rusty-can.png'; // New: Icon for Rusty Can
+        const garbageIconUrl = 'assets/items/garbage.png'; // New: Icon for Garbage
+        const screwsIconUrl = 'assets/items/screws.png'; // New: Icon for Screws
+
         const lumberMillIconUrl = 'assets/nav/lumbermill.png';
         const axeShopIconUrl = 'assets/nav/shop.png';
         const homeIconUrl = 'assets/nav/home.png';
@@ -685,30 +753,65 @@
         const debugIconUrl = 'assets/nav/debug.png'; // Simple debug icon
         const shopsIconUrl = 'assets/nav/shops.png'; // New icon for shops
         const settingsIconUrl = 'assets/nav/settings.png'; // New icon for settings
+        const questsIconUrl = 'assets/nav/quests.png'; // New icon for quests
+        const buySellShopIconUrl = 'assets/nav/buysell.png'; // New icon for Buy & Sell shop
 
 
         // --- UI Update Functions ---
         const getAppRoot = () => document.getElementById('app-root');
+
+        // Function to calculate current inventory weight
+        const calculateCurrentInventoryWeight = () => {
+            return (woodCount * LUMBER_ITEM_WEIGHT) +
+                   (grapeLumberCount * LUMBER_ITEM_WEIGHT) +
+                   (soulLumberCount * SOUL_LUMBER_ITEM_WEIGHT); // Use new constant for soul lumber
+        };
+
+        // Function to update inventory capacity based on equipped backpack
+        const updateInventoryCapacity = () => {
+            const equippedBackpack = backpackItems.find(bp => bp.id === currentBackpackId);
+            inventoryCapacity = DEFAULT_INVENTORY_CAPACITY + (equippedBackpack ? equippedBackpack.capacityIncrease : 0);
+        };
 
         const updateCurrencyDisplay = () => {
             const woodSpan = document.getElementById('woodCount');
             const moneySpan = document.getElementById('moneyCount');
             const grapeLumberSpan = document.getElementById('grapeLumberCount'); // New: Get grape lumber span
             const soulLumberSpan = document.getElementById('soulLumberCount'); // New: Get soul lumber span
+            const rustyCanSpan = document.getElementById('rustyCanCount'); // New: Get rusty can span
+            const garbageSpan = document.getElementById('garbageCount'); // New: Get garbage span
+            const screwsSpan = document.getElementById('screwsCount'); // New: Get screws span
             const idleWoodRateSpan = document.getElementById('idleWoodRate'); // New: Get idle wood rate span
             const idleSoulLumberRateSpan = document.getElementById('idleSoulLumberRate'); // New: Get idle soul lumber rate span
             
+            // New: Inventory capacity display elements
+            const currentInventoryWeightSpan = document.getElementById('currentInventoryWeight');
+            const inventoryCapacitySpan = document.getElementById('inventoryCapacity');
+
             // Get the new axe and car display elements
             const currentAxeDisplayDiv = document.getElementById('currentAxeDisplay');
             const currentCarDisplayDiv = document.getElementById('currentCarDisplay');
+            // New: Current Backpack Display element
+            const currentBackpackDisplayDiv = document.getElementById('currentBackpackDisplay');
 
 
             if (woodSpan) woodSpan.textContent = woodCount;
             if (moneySpan) moneySpan.textContent = moneyCount;
             if (grapeLumberSpan) grapeLumberSpan.textContent = grapeLumberCount; // New: Update grape lumber count
             if (soulLumberSpan) soulLumberSpan.textContent = soulLumberCount; // New: Update soul lumber count
+            if (rustyCanSpan) rustyCanSpan.textContent = rustyCanCount; // New: Update rusty can count
+            if (garbageSpan) garbageSpan.textContent = garbageCount; // New: Update garbage count
+            if (screwsSpan) screwsSpan.textContent = screwsCount; // New: Update screws count
             if (idleWoodRateSpan) idleWoodRateSpan.textContent = `${totalIdleWoodPerSecond}/sec`;
             if (idleSoulLumberRateSpan) idleSoulLumberRateSpan.textContent = `${totalIdleSoulLumberPerSecond}/sec`;
+
+            // Update inventory weight and capacity
+            currentInventoryWeight = calculateCurrentInventoryWeight(); // Recalculate weight
+            updateInventoryCapacity(); // Recalculate capacity based on equipped backpack
+
+            if (currentInventoryWeightSpan) currentInventoryWeightSpan.textContent = currentInventoryWeight.toFixed(2);
+            if (inventoryCapacitySpan) inventoryCapacitySpan.textContent = inventoryCapacity;
+
 
             // Update Current Axe Display
             if (currentAxeDisplayDiv) {
@@ -716,7 +819,7 @@
                 if (currentAxe) {
                     currentAxeDisplayDiv.innerHTML = `
                         <img src="${currentAxe.imageUrl}" alt="${currentAxe.name}" class="w-16 h-16 rounded-full object-contain mr-2" />
-                        <span class="text-2xl font-bold text-blue-400">${currentAxe.name}</span>
+                        <span class="text-2xl font-bold text-cyan-400">${currentAxe.name}</span>
                         <span class="text-lg text-stone-300 ml-2">(Cuts ${currentAxe.cutSpeedMultiplier}x faster)</span>
                     `;
                     currentAxeDisplayDiv.classList.remove('hidden');
@@ -731,12 +834,27 @@
                 if (currentCar) {
                     currentCarDisplayDiv.innerHTML = `
                         <img src="${currentCar.imageUrl}" alt="${currentCar.name}" class="w-16 h-16 rounded-full object-contain mr-2" />
-                        <span class="text-2xl font-bold text-blue-400">${currentCar.name}</span>
+                        <span class="text-2xl font-bold text-cyan-400">${currentCar.name}</span>
                         <span class="text-lg text-stone-300 ml-2">(Gives ${currentCar.moneyBonusMultiplier}x more money, Delivers ${currentCar.deliverySpeedMultiplier}x faster)</span>
                     `;
                     currentCarDisplayDiv.classList.remove('hidden');
                 } else {
                     currentCarDisplayDiv.classList.add('hidden');
+                }
+            }
+
+            // Update Current Backpack Display
+            if (currentBackpackDisplayDiv) {
+                const currentBackpack = backpackItems.find(bp => bp.id === currentBackpackId);
+                if (currentBackpack) {
+                    currentBackpackDisplayDiv.innerHTML = `
+                        <img src="${currentBackpack.imageUrl}" alt="${currentBackpack.name}" class="w-16 h-16 rounded-full object-contain mr-2" />
+                        <span class="text-2xl font-bold text-green-400">${currentBackpack.name}</span>
+                        <span class="text-lg text-stone-300 ml-2">(Capacity: ${DEFAULT_INVENTORY_CAPACITY + currentBackpack.capacityIncrease}kg)</span>
+                    `;
+                    currentBackpackDisplayDiv.classList.remove('hidden');
+                } else {
+                    currentBackpackDisplayDiv.classList.add('hidden');
                 }
             }
         };
@@ -759,8 +877,12 @@
                 button.innerHTML = `<img src="${iconUrl}" alt="${label} Icon" class="nav-icon" />${label}`;
                 // Adjusted px-6 to px-4 for slightly less horizontal padding on buttons
                 button.className = `px-4 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out ${currentView === viewName ? activeClass : inactiveClass}`;
+                
+                // Add hover sound listeners
+                button.addEventListener('mouseover', playHoverSound);
+                button.addEventListener('mouseout', stopHoverSound);
+
                 button.addEventListener('click', () => {
-                    playClickSound(); // Play click sound effect on button click
                     // If currently selling, stop the process before navigating
                     if (isSelling) {
                         clearInterval(sellingIntervalRef);
@@ -778,6 +900,15 @@
                         sellingGrapeProgress = 0;
                         currentSellGrapeAmount = 0;
                         // Removed selling sound stop: if (sellingSound && sellingSound.state === 'started') { sellingSound.stop(); }
+                    }
+                    // New: If currently selling junk, stop the process
+                    if (isSellingJunk) {
+                        clearInterval(sellingJunkIntervalRef);
+                        sellingJunkIntervalRef = null;
+                        isSellingJunk = false;
+                        sellingJunkProgress = 0;
+                        currentSellJunkAmount = 0;
+                        currentSellJunkType = '';
                     }
                     // If currently cutting, stop the process before navigating
                     if (isCutting) {
@@ -797,6 +928,16 @@
                         currentDeliveryAmount = 0;
                         // Removed delivery sound stop: if (deliverySound && deliverySound.state === 'started') { deliverySound.stop(); }
                     }
+                    // New: If currently questing, stop the process before navigating
+                    if (isQuesting) {
+                        clearInterval(questIntervalRef);
+                        questIntervalRef = null;
+                        isQuesting = false;
+                        questProgress = 0;
+                        currentQuestId = null;
+                        currentQuestLumberRequired = 0;
+                    }
+
 
                     // Reset all furniture modes when navigating between main views
                     isRearrangingFurniture = false;
@@ -808,7 +949,7 @@
                     currentView = viewName;
                     lastLocation = viewName; // Update lastLocation on navigation
                     // Reset homeSubView and furniture modes when navigating away from or to home or shops
-                    if (viewName === 'home' || viewName === 'shops') {
+                    if (viewName === 'home' || viewName === 'shops' || viewName === 'buySellShop' || viewName === 'backpackShop') { // Added backpackShop
                         homeSubView = 'none'; // Reset to default home sub-view (hidden)
                         currentFurnitureCategory = 'furniture'; // Reset to default furniture category
                         isFurnitureShopOpen = false; // Keep shop closed by default when entering home view
@@ -827,10 +968,11 @@
             };
 
             // Main Navigation Buttons - Adjusted colors for new theme
-            navContainer.appendChild(createNavButton('forest', 'Chop Trees', biomesData.forest.iconUrl, 'bg-green-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
-            navContainer.appendChild(createNavButton('lumberMill', 'Lumber Mill', lumberMillIconUrl, 'bg-orange-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
+            navContainer.appendChild(createNavButton('forest', 'Chop Trees', biomesData.forest.iconUrl, 'bg-emerald-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
+            navContainer.appendChild(createNavButton('lumberMill', 'Lumber Mill', lumberMillIconUrl, 'bg-amber-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
             // Replaced individual shop buttons with a single 'Shops' button
-            navContainer.appendChild(createNavButton('shops', 'Shops', shopsIconUrl, 'bg-red-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
+            navContainer.appendChild(createNavButton('shops', 'Shops', shopsIconUrl, 'bg-rose-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
+            navContainer.appendChild(createNavButton('buySellShop', 'Buy & Sell', buySellShopIconUrl, 'bg-lime-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600')); // New Buy & Sell Shop
             navContainer.appendChild(createNavButton('home', 'Your Home', homeIconUrl, 'bg-indigo-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
             
             // New Biomes Button - only show if unlocked
@@ -842,6 +984,10 @@
             if (deliveriesUnlocked) {
                 navContainer.appendChild(createNavButton('deliveries', 'Deliveries', deliveriesIconUrl, 'bg-teal-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
             }
+
+            // New Quests Button - questsUnlocked is now true by default
+            navContainer.appendChild(createNavButton('quests', 'Quests', questsIconUrl, 'bg-orange-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
+            
 
             // New Inventory Button
             navContainer.appendChild(createNavButton('inventory', 'Inventory', inventoryIconUrl, 'bg-stone-700 text-white shadow-lg', 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'));
@@ -879,8 +1025,8 @@
                     break;
                 case 'forest':
                 default:
-                    biomeBgColor = 'bg-green-900/50';
-                    biomeGroundColor = 'bg-green-800';
+                    biomeBgColor = 'bg-emerald-900/50'; // Changed from green-900/50
+                    biomeGroundColor = 'bg-emerald-800'; // Changed from green-800
                     progressBarClass = ''; // Default green
                     break;
             }
@@ -949,7 +1095,7 @@
             }
 
             lumberMillDiv.innerHTML = `
-                <h2 class="text-3xl font-bold text-stone-200 mb-6">Welcome to the Lumber Mill!</h2>
+                <h2 class="text-3xl font-bold text-amber-400 mb-6">Welcome to the Lumber Mill!</h2>
                 <p class="text-lg text-stone-300 mb-4">Sell your wood here to earn money.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full"> <!-- New grid container -->
                     <div class="bg-stone-900 p-6 rounded-lg shadow-md flex flex-col items-center gap-4">
@@ -962,11 +1108,11 @@
                                 min="0"
                                 value="${sellWoodAmount}"
                                 class="w-24 p-2 border border-stone-600 rounded-md text-center text-lg font-semibold bg-stone-700 text-stone-100"
-                                ${isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}
+                                ${isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk ? 'disabled' : ''}
                             />
                             <span class="text-lg font-medium text-stone-100">Wood</span>
                         </div>
-                        <p class="text-md text-stone-300">You will get: <span class="font-bold text-green-400" id="sellMoneyPreview">${sellWoodAmount * WOOD_TO_MONEY_RATE}</span> <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                        <p class="text-md text-stone-300">You will get: <span class="font-bold text-emerald-400" id="sellMoneyPreview">${sellWoodAmount * WOOD_TO_MONEY_RATE}</span> <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
 
                         <!-- Selling Progress Bar -->
                         <div id="sellingProgressBarContainer" class="progress-bar-container w-full max-w-xs ${isSelling ? '' : 'hidden'}">
@@ -975,8 +1121,8 @@
                         <p id="sellingStatus" class="text-sm text-blue-400 ${isSelling ? '' : 'hidden'}">Processing ${currentSellAmount} wood...</p>
 
                         <button id="sellWoodButton" class="px-8 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out
-                            ${sellWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering ? 'bg-orange-600 hover:bg-orange-700' : 'bg-stone-600 cursor-not-allowed'}"
-                            ${sellWoodAmount <= 0 || isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}>
+                            ${sellWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk ? 'bg-amber-600 hover:bg-amber-700' : 'bg-stone-600 cursor-not-allowed'}"
+                            ${sellWoodAmount <= 0 || isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk ? 'disabled' : ''}>
                             Exchange Lumber
                         </button>
                     </div>
@@ -985,7 +1131,7 @@
                     <div class="bg-stone-900 p-6 rounded-lg shadow-md flex flex-col items-center gap-4 ${lumberMillUpgraded ? 'hidden' : ''}">
                         <h3 class="text-2xl font-bold text-yellow-300">Cannot Exchange</h3>
                         <p class="text-lg text-stone-300">Locked</p>
-                        <p class="text-xl font-bold text-green-400">Cost: ${LUMBER_MILL_UPGRADE_COST} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                        <p class="text-xl font-bold text-emerald-400">Cost: ${LUMBER_MILL_UPGRADE_COST} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
                         <button id="upgradeLumberMillButton" class="px-8 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out
                             ${moneyCount >= LUMBER_MILL_UPGRADE_COST ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-stone-600 cursor-not-allowed'}"
                             ${moneyCount < LUMBER_MILL_UPGRADE_COST ? 'disabled' : ''}>
@@ -1005,11 +1151,11 @@
                                 min="0"
                                 value="${sellGrapeWoodAmount}"
                                 class="w-24 p-2 border border-stone-600 rounded-md text-center text-lg font-semibold bg-stone-700 text-stone-100"
-                                ${isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}
+                                ${isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk ? 'disabled' : ''}
                             />
                             <span class="text-lg font-medium text-stone-100">Grape Lumber</span>
                         </div>
-                        <p class="text-md text-stone-300">You will get: <span class="font-bold text-green-400" id="sellGrapeMoneyPreview">${sellGrapeWoodAmount * GRAPE_WOOD_TO_MONEY_RATE}</span> <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                        <p class="text-md text-stone-300">You will get: <span class="font-bold text-emerald-400" id="sellGrapeMoneyPreview">${sellGrapeWoodAmount * GRAPE_WOOD_TO_MONEY_RATE}</span> <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
 
                         <!-- Selling Grape Progress Bar -->
                         <div id="sellingGrapeProgressBarContainer" class="progress-bar-container w-full max-w-xs ${isSellingGrape ? '' : 'hidden'}">
@@ -1018,8 +1164,8 @@
                         <p id="sellingGrapeStatus" class="text-sm text-purple-400 ${isSellingGrape ? '' : 'hidden'}">Processing ${currentSellGrapeAmount} Grape Lumber...</p>
 
                         <button id="sellGrapeWoodButton" class="px-8 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out
-                            ${sellGrapeWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering ? 'bg-purple-600 hover:bg-purple-700' : 'bg-stone-600 cursor-not-allowed'}"
-                            ${sellGrapeWoodAmount <= 0 || isSelling || isSellingGrape || isDelivering ? 'disabled' : ''}>
+                            ${sellGrapeWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk ? 'bg-purple-600 hover:bg-purple-700' : 'bg-stone-600 cursor-not-allowed'}"
+                            ${sellGrapeWoodAmount <= 0 || isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk ? 'disabled' : ''}>
                             Exchange Grape Lumber
                         </button>
                     </div>
@@ -1045,13 +1191,13 @@
                 // Update button state
                 const sellWoodButton = lumberMillDiv.querySelector('#sellWoodButton');
                 if (sellWoodButton) {
-                    const canSell = sellWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering;
+                    const canSell = sellWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk;
                     sellWoodButton.disabled = !canSell;
                     if (canSell) {
                         sellWoodButton.classList.remove('bg-stone-600', 'cursor-not-allowed');
-                        sellWoodButton.classList.add('bg-orange-600', 'hover:bg-orange-700');
+                        sellWoodButton.classList.add('bg-amber-600', 'hover:bg-amber-700');
                     } else {
-                        sellWoodButton.classList.remove('bg-orange-600', 'hover:bg-orange-700');
+                        sellWoodButton.classList.remove('bg-amber-600', 'hover:bg-amber-700');
                         sellWoodButton.classList.add('bg-stone-600', 'cursor-not-allowed');
                     }
                 }
@@ -1085,7 +1231,7 @@
                     // Update button state
                     const sellGrapeWoodButton = lumberMillDiv.querySelector('#sellGrapeWoodButton');
                     if (sellGrapeWoodButton) {
-                        const canSell = sellGrapeWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering;
+                        const canSell = sellGrapeWoodAmount > 0 && !isSelling && !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk;
                         sellGrapeWoodButton.disabled = !canSell;
                         if (canSell) {
                             sellGrapeWoodButton.classList.remove('bg-stone-600', 'cursor-not-allowed');
@@ -1108,7 +1254,7 @@
             // Removed fixed height to allow it to grow with content
             axeShopDiv.style.height = 'auto';
             axeShopDiv.innerHTML = `
-                <h2 class="text-3xl font-bold text-red-400 mb-6">Axe Shop</h2>
+                <h2 class="text-3xl font-bold text-rose-400 mb-6">Axe Shop</h2>
                 <p class="text-lg text-stone-300 mb-4">Upgrade your axe to cut trees faster!</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-2xl" id="axeItemsContainer">
                     <!-- Axe items will be dynamically added here -->
@@ -1119,14 +1265,14 @@
             axeItems.forEach(axe => {
                 const axeCard = document.createElement('div');
                 axeCard.className = `bg-stone-900 p-4 rounded-lg shadow-md flex flex-col items-center border-2
-                    ${currentAxeId === axe.id ? 'border-blue-500 ring-4 ring-blue-200' : 'border-stone-600'}
+                    ${currentAxeId === axe.id ? 'border-cyan-500 ring-4 ring-cyan-200' : 'border-stone-600'}
                     ${moneyCount < axe.moneyCost && !ownedAxes.includes(axe.id) ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg transition-shadow duration-200'}
                 `;
                 axeCard.innerHTML = `
                     <img src="${axe.imageUrl}" alt="${axe.name}" class="w-20 h-20 mb-3 rounded-full object-contain" />
                     <h3 class="text-xl font-semibold text-stone-100">${axe.name}</h3>
                     <p class="text-sm text-stone-300">Cuts: ${axe.cutSpeedMultiplier}x faster</p>
-                    <p class="text-lg font-bold text-green-400 mt-2">Cost: ${axe.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                    <p class="text-lg font-bold text-emerald-400 mt-2">Cost: ${axe.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
                 `;
 
                 const button = document.createElement('button');
@@ -1135,12 +1281,12 @@
                 // Fix for InvalidCharacterError: Use spread operator for multiple classes
                 if (ownedAxes.includes(axe.id)) {
                     button.textContent = currentAxeId === axe.id ? 'Equipped' : 'Equip';
-                    button.classList.add(...(currentAxeId === axe.id ? ['bg-blue-600', 'cursor-default'] : ['bg-blue-700', 'hover:bg-blue-600']));
+                    button.classList.add(...(currentAxeId === axe.id ? ['bg-cyan-600', 'cursor-default'] : ['bg-cyan-700', 'hover:bg-cyan-600']));
                     button.disabled = currentAxeId === axe.id;
                     button.addEventListener('click', () => equipAxe(axe.id));
                 } else {
                     button.textContent = 'Buy Axe';
-                    button.classList.add(...(moneyCount >= axe.moneyCost ? ['bg-red-600', 'hover:bg-red-700'] : ['bg-stone-600', 'cursor-not-allowed']));
+                    button.classList.add(...(moneyCount >= axe.moneyCost ? ['bg-rose-600', 'hover:bg-rose-700'] : ['bg-stone-600', 'cursor-not-allowed']));
                     button.disabled = moneyCount < axe.moneyCost;
                     button.addEventListener('click', () => buyAxe(axe.id));
                 }
@@ -1157,7 +1303,7 @@
             carShopDiv.className = "w-full h-[400px] bg-stone-800 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-hidden";
             carShopDiv.style.height = 'auto';
             carShopDiv.innerHTML = `
-                <h2 class="text-3xl font-bold text-blue-400 mb-6">Car Shop</h2>
+                <h2 class="text-3xl font-bold text-cyan-400 mb-6">Car Shop</h2>
                 <p class="text-lg text-stone-300 mb-4">Purchase vehicles to deliver lumber faster!</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-2xl" id="carItemsContainer">
                     <!-- Car items will be dynamically added here -->
@@ -1168,7 +1314,7 @@
             carItems.forEach(car => {
                 const carCard = document.createElement('div');
                 carCard.className = `bg-stone-900 p-4 rounded-lg shadow-md flex flex-col items-center border-2
-                    ${currentCarId === car.id ? 'border-blue-500 ring-4 ring-blue-200' : 'border-stone-600'}
+                    ${currentCarId === car.id ? 'border-cyan-500 ring-4 ring-cyan-200' : 'border-stone-600'}
                     ${moneyCount < car.moneyCost && !ownedCars.includes(car.id) ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg transition-shadow duration-200'}
                 `;
                 carCard.innerHTML = `
@@ -1177,7 +1323,7 @@
                     <p class="text-sm text-stone-300">Money Bonus: ${car.moneyBonusMultiplier}x</p>
                     <p class="text-sm text-stone-300">Delivery Speed: ${car.deliverySpeedMultiplier}x faster</p>
                     ${car.deliversSoulLumber ? '<p class="text-sm text-red-400">Delivers Soul Lumber</p>' : ''}
-                    <p class="text-lg font-bold text-green-400 mt-2">Cost: ${car.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                    <p class="text-lg font-bold text-emerald-400 mt-2">Cost: ${car.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
                 `;
 
                 const button = document.createElement('button');
@@ -1185,12 +1331,12 @@
 
                 if (ownedCars.includes(car.id)) {
                     button.textContent = currentCarId === car.id ? 'Equipped' : 'Equip';
-                    button.classList.add(...(currentCarId === car.id ? ['bg-blue-600', 'cursor-default'] : ['bg-blue-700', 'hover:bg-blue-600']));
+                    button.classList.add(...(currentCarId === car.id ? ['bg-cyan-600', 'cursor-default'] : ['bg-cyan-700', 'hover:bg-cyan-600']));
                     button.disabled = currentCarId === car.id;
                     button.addEventListener('click', () => equipCar(car.id));
                 } else {
                     button.textContent = 'Buy Car';
-                    button.classList.add(...(moneyCount >= car.moneyCost ? ['bg-blue-600', 'hover:bg-blue-700'] : ['bg-stone-600', 'cursor-not-allowed']));
+                    button.classList.add(...(moneyCount >= car.moneyCost ? ['bg-cyan-600', 'hover:bg-cyan-700'] : ['bg-stone-600', 'cursor-not-allowed']));
                     button.disabled = moneyCount < car.moneyCost;
                     button.addEventListener('click', () => buyCar(car.id));
                 }
@@ -1201,20 +1347,77 @@
             return carShopDiv;
         };
 
+        // New: renderBackpackShopView function
+        const renderBackpackShopView = () => {
+            const backpackShopDiv = document.createElement('div');
+            backpackShopDiv.className = "w-full h-[400px] bg-stone-800 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-hidden";
+            backpackShopDiv.style.height = 'auto';
+            backpackShopDiv.innerHTML = `
+                <h2 class="text-3xl font-bold text-green-400 mb-6">Backpack Shop</h2>
+                <p class="text-lg text-stone-300 mb-4">Increase your inventory capacity!</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-2xl" id="backpackItemsContainer">
+                    <!-- Backpack items will be dynamically added here -->
+                </div>
+            `;
+
+            const backpackItemsContainer = backpackShopDiv.querySelector('#backpackItemsContainer');
+            backpackItems.forEach(backpack => {
+                const backpackCard = document.createElement('div');
+                backpackCard.className = `bg-stone-900 p-4 rounded-lg shadow-md flex flex-col items-center border-2
+                    ${currentBackpackId === backpack.id ? 'border-green-500 ring-4 ring-green-200' : 'border-stone-600'}
+                    ${moneyCount < backpack.moneyCost && !ownedBackpacks.includes(backpack.id) ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg transition-shadow duration-200'}
+                `;
+                backpackCard.innerHTML = `
+                    <img src="${backpack.imageUrl}" alt="${backpack.name}" class="w-20 h-20 mb-3 rounded-full object-contain" />
+                    <h3 class="text-xl font-semibold text-stone-100">${backpack.name}</h3>
+                    <p class="text-sm text-stone-300">Capacity: ${DEFAULT_INVENTORY_CAPACITY + backpack.capacityIncrease}kg</p>
+                    <p class="text-lg font-bold text-emerald-400 mt-2">Cost: ${backpack.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                `;
+
+                const button = document.createElement('button');
+                button.className = `mt-4 px-6 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out`;
+
+                if (ownedBackpacks.includes(backpack.id)) {
+                    button.textContent = currentBackpackId === backpack.id ? 'Equipped' : 'Equip';
+                    button.classList.add(...(currentBackpackId === backpack.id ? ['bg-green-600', 'cursor-default'] : ['bg-green-700', 'hover:bg-green-600']));
+                    button.disabled = currentBackpackId === backpack.id;
+                    button.addEventListener('click', () => equipBackpack(backpack.id));
+                } else {
+                    button.textContent = 'Buy Backpack';
+                    button.classList.add(...(moneyCount >= backpack.moneyCost ? ['bg-green-600', 'hover:bg-green-700'] : ['bg-stone-600', 'cursor-not-allowed']));
+                    button.disabled = moneyCount < backpack.moneyCost;
+                    button.addEventListener('click', () => buyBackpack(backpack.id));
+                }
+                backpackCard.appendChild(button);
+                backpackItemsContainer.appendChild(backpackCard);
+            });
+
+            return backpackShopDiv;
+        };
+
         // New: renderShopsView function to display Axe Shop and Car Shop buttons
         const renderShopsView = () => {
             const shopsDiv = document.createElement('div');
             shopsDiv.className = "w-full h-[400px] bg-stone-800 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-hidden";
             shopsDiv.style.height = 'auto';
             shopsDiv.innerHTML = `
-                <h2 class="text-3xl font-bold text-red-400 mb-6">Shops</h2>
+                <h2 class="text-3xl font-bold text-rose-400 mb-6">Shops</h2>
                 <p class="text-lg text-stone-300 mb-4">Choose a shop to visit:</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
-                    <button id="goToAxeShopBtn" class="px-8 py-4 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out bg-red-600 hover:bg-red-700 flex items-center justify-center">
+                    <button id="goToAxeShopBtn" class="px-8 py-4 rounded-xl font-bold text-white shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105
+                        bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 ring-2 ring-rose-500 hover:ring-rose-400
+                        flex items-center justify-center">
                         <img src="${axeShopIconUrl}" alt="Axe Shop Icon" class="nav-icon mr-2" />Axe Shop
                     </button>
-                    <button id="goToCarShopBtn" class="px-8 py-4 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out bg-blue-600 hover:bg-blue-700 flex items-center justify-center">
+                    <button id="goToCarShopBtn" class="px-8 py-4 rounded-xl font-bold text-white shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105
+                        bg-gradient-to-r from-cyan-600 to-cyan-800 hover:from-cyan-700 hover:to-cyan-900 ring-2 ring-cyan-500 hover:ring-cyan-400
+                        flex items-center justify-center">
                         <img src="${carShopIconUrl}" alt="Car Shop Icon" class="nav-icon mr-2" />Car Shop
+                    </button>
+                    <button id="goToBackpackShopBtn" class="px-8 py-4 rounded-xl font-bold text-white shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105
+                        bg-gradient-to-r from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 ring-2 ring-green-500 hover:ring-green-400
+                        flex items-center justify-center">
+                        <img src="${inventoryIconUrl}" alt="Backpack Shop Icon" class="nav-icon mr-2" />Backpack Shop
                     </button>
                 </div>
             `;
@@ -1231,7 +1434,159 @@
                 saveGame();
             });
 
+            shopsDiv.querySelector('#goToBackpackShopBtn').addEventListener('click', () => {
+                currentView = 'backpackShop';
+                renderApp();
+                saveGame();
+            });
+
             return shopsDiv;
+        };
+
+        // New: renderBuySellShopView function
+        const renderBuySellShopView = () => {
+            const buySellShopDiv = document.createElement('div');
+            buySellShopDiv.className = "w-full h-[600px] bg-stone-800 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-auto";
+            buySellShopDiv.style.height = 'auto';
+            buySellShopDiv.innerHTML = `
+                <h2 class="text-3xl font-bold text-lime-400 mb-6">Buy & Sell Shop</h2>
+                <p class="text-lg text-stone-300 mb-4">Sell your junk items for money!</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-4xl">
+                    <!-- Rusty Can Sell Section -->
+                    <div class="bg-stone-900 p-6 rounded-lg shadow-md flex flex-col items-center gap-4">
+                        <h3 class="text-2xl font-bold text-stone-100">Sell Rusty Cans</h3>
+                        <img src="${rustyCanIconUrl}" alt="Rusty Can Icon" class="w-16 h-16 object-contain" />
+                        <div class="flex items-center space-x-2">
+                            <label for="sellRustyCanAmount" class="text-lg font-medium text-stone-100">Sell:</label>
+                            <input
+                                type="number"
+                                id="sellRustyCanAmount"
+                                min="0"
+                                value="${sellRustyCanAmount}"
+                                class="w-24 p-2 border border-stone-600 rounded-md text-center text-lg font-semibold bg-stone-700 text-stone-100"
+                                ${isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk ? 'disabled' : ''}
+                            />
+                            <span class="text-lg font-medium text-stone-100">Rusty Cans</span>
+                        </div>
+                        <p class="text-md text-stone-300">You will get: <span class="font-bold text-emerald-400" id="sellRustyCanMoneyPreview">${sellRustyCanAmount * RUSTY_CAN_TO_MONEY_RATE}</span> <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                        <button id="sellRustyCanButton" class="px-8 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out
+                            ${rustyCanCount > 0 && sellRustyCanAmount > 0 && !isSelling && !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk ? 'bg-lime-600 hover:bg-lime-700' : 'bg-stone-600 cursor-not-allowed'}"
+                            ${rustyCanCount <= 0 || sellRustyCanAmount <= 0 || isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk ? 'disabled' : ''}>
+                            Sell
+                        </button>
+                    </div>
+
+                    <!-- Garbage Sell Section -->
+                    <div class="bg-stone-900 p-6 rounded-lg shadow-md flex flex-col items-center gap-4">
+                        <h3 class="text-2xl font-bold text-stone-100">Sell Garbage</h3>
+                        <img src="${garbageIconUrl}" alt="Garbage Icon" class="w-16 h-16 object-contain" />
+                        <div class="flex items-center space-x-2">
+                            <label for="sellGarbageAmount" class="text-lg font-medium text-stone-100">Sell:</label>
+                            <input
+                                type="number"
+                                id="sellGarbageAmount"
+                                min="0"
+                                value="${sellGarbageAmount}"
+                                class="w-24 p-2 border border-stone-600 rounded-md text-center text-lg font-semibold bg-stone-700 text-stone-100"
+                                ${isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk ? 'disabled' : ''}
+                            />
+                            <span class="text-lg font-medium text-stone-100">Garbage</span>
+                        </div>
+                        <p class="text-md text-stone-300">You will get: <span class="font-bold text-emerald-400" id="sellGarbageMoneyPreview">${sellGarbageAmount * GARBAGE_TO_MONEY_RATE}</span> <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                        <button id="sellGarbageButton" class="px-8 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out
+                            ${garbageCount > 0 && sellGarbageAmount > 0 && !isSelling || !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk ? 'bg-lime-600 hover:bg-lime-700' : 'bg-stone-600 cursor-not-allowed'}"
+                            ${garbageCount <= 0 || sellGarbageAmount <= 0 || isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk ? 'disabled' : ''}>
+                            Sell
+                        </button>
+                    </div>
+
+                    <!-- Screws Sell Section -->
+                    <div class="bg-stone-900 p-6 rounded-lg shadow-md flex flex-col items-center gap-4">
+                        <h3 class="text-2xl font-bold text-stone-100">Sell Screws</h3>
+                        <img src="${screwsIconUrl}" alt="Screws Icon" class="w-16 h-16 object-contain" />
+                        <div class="flex items-center space-x-2">
+                            <label for="sellScrewsAmount" class="text-lg font-medium text-stone-100">Sell:</label>
+                            <input
+                                type="number"
+                                id="sellScrewsAmount"
+                                min="0"
+                                value="${sellScrewsAmount}"
+                                class="w-24 p-2 border border-stone-600 rounded-md text-center text-lg font-semibold bg-stone-700 text-stone-100"
+                                ${isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk ? 'disabled' : ''}
+                            />
+                            <span class="text-lg font-medium text-stone-100">Screws</span>
+                        </div>
+                        <p class="text-md text-stone-300">You will get: <span class="font-bold text-emerald-400" id="sellScrewsMoneyPreview">${sellScrewsAmount * SCREWS_TO_MONEY_RATE}</span> <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                        <button id="sellScrewsButton" class="px-8 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out
+                            ${screwsCount > 0 && sellScrewsAmount > 0 && !isSelling || !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk ? 'bg-lime-600 hover:bg-lime-700' : 'bg-stone-600 cursor-not-allowed'}"
+                            ${screwsCount <= 0 || sellScrewsAmount <= 0 || isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk ? 'disabled' : ''}>
+                            Sell
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Selling Junk Progress Bar -->
+                <div id="sellingJunkProgressBarContainer" class="progress-bar-container w-full max-w-xs mt-6 ${isSellingJunk ? '' : 'hidden'}">
+                    <div id="sellingJunkProgressBar" class="progress-bar bg-lime-500" style="width: ${sellingJunkProgress}%"></div>
+                </div>
+                <p id="sellingJunkStatus" class="text-sm text-lime-400 ${isSellingJunk ? '' : 'hidden'}">Processing ${currentSellJunkAmount} ${currentSellJunkType}...</p>
+            `;
+
+            // Event listeners for Rusty Can sell input and button
+            buySellShopDiv.querySelector('#sellRustyCanAmount').addEventListener('input', (e) => {
+                let inputValue = parseInt(e.target.value);
+                sellRustyCanAmount = (isNaN(inputValue) || inputValue < 0) ? 0 : inputValue;
+                buySellShopDiv.querySelector('#sellRustyCanMoneyPreview').textContent = sellRustyCanAmount * RUSTY_CAN_TO_MONEY_RATE;
+                const sellButton = buySellShopDiv.querySelector('#sellRustyCanButton');
+                const canSell = rustyCanCount >= sellRustyCanAmount && sellRustyCanAmount > 0 && !isSelling && !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk;
+                sellButton.disabled = !canSell;
+                if (canSell) {
+                    sellButton.classList.remove('bg-stone-600', 'cursor-not-allowed');
+                    sellButton.classList.add('bg-lime-600', 'hover:bg-lime-700');
+                } else {
+                    sellButton.classList.remove('bg-lime-600', 'hover:bg-lime-700');
+                    sellButton.classList.add('bg-stone-600', 'cursor-not-allowed');
+                }
+            });
+            buySellShopDiv.querySelector('#sellRustyCanButton').addEventListener('click', () => sellJunk('rustyCan', sellRustyCanAmount));
+
+            // Event listeners for Garbage sell input and button
+            buySellShopDiv.querySelector('#sellGarbageAmount').addEventListener('input', (e) => {
+                let inputValue = parseInt(e.target.value);
+                sellGarbageAmount = (isNaN(inputValue) || inputValue < 0) ? 0 : inputValue;
+                buySellShopDiv.querySelector('#sellGarbageMoneyPreview').textContent = sellGarbageAmount * GARBAGE_TO_MONEY_RATE;
+                const sellButton = buySellShopDiv.querySelector('#sellGarbageButton');
+                const canSell = garbageCount >= sellGarbageAmount && sellGarbageAmount > 0 && !isSelling && !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk;
+                sellButton.disabled = !canSell;
+                if (canSell) {
+                    sellButton.classList.remove('bg-stone-600', 'cursor-not-allowed');
+                    sellButton.classList.add('bg-lime-600', 'hover:bg-lime-700');
+                } else {
+                    sellButton.classList.remove('bg-lime-600', 'hover:bg-lime-700');
+                    sellButton.classList.add('bg-stone-600', 'cursor-not-allowed');
+                }
+            });
+            buySellShopDiv.querySelector('#sellGarbageButton').addEventListener('click', () => sellJunk('garbage', sellGarbageAmount));
+
+            // Event listeners for Screws sell input and button
+            buySellShopDiv.querySelector('#sellScrewsAmount').addEventListener('input', (e) => {
+                let inputValue = parseInt(e.target.value);
+                sellScrewsAmount = (isNaN(inputValue) || inputValue < 0) ? 0 : inputValue;
+                buySellShopDiv.querySelector('#sellScrewsMoneyPreview').textContent = sellScrewsAmount * SCREWS_TO_MONEY_RATE;
+                const sellButton = buySellShopDiv.querySelector('#sellScrewsButton');
+                const canSell = screwsCount >= sellScrewsAmount && sellScrewsAmount > 0 && !isSelling && !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk;
+                sellButton.disabled = !canSell;
+                if (canSell) {
+                    sellButton.classList.remove('bg-stone-600', 'cursor-not-allowed');
+                    sellButton.classList.add('bg-lime-600', 'hover:bg-lime-700');
+                } else {
+                    sellButton.classList.remove('bg-lime-600', 'hover:bg-lime-700');
+                    sellButton.classList.add('bg-stone-600', 'cursor-not-allowed');
+                }
+            });
+            buySellShopDiv.querySelector('#sellScrewsButton').addEventListener('click', () => sellJunk('screws', sellScrewsAmount));
+
+            return buySellShopDiv;
         };
 
 
@@ -1248,7 +1603,7 @@
                     <div class="bg-stone-900 p-4 rounded-lg shadow-md flex items-center mb-6">
                         <span class="text-lg font-semibold text-stone-100 mr-2">Using:</span>
                         <img src="${carItems.find(c => c.id === currentCarId)?.imageUrl}" alt="${carItems.find(c => c.id === currentCarId)?.name}" class="w-10 h-10 rounded-full object-contain mr-2" />
-                        <span class="text-xl font-bold text-blue-400">${carItems.find(c => c.id === currentCarId)?.name}</span>
+                        <span class="text-xl font-bold text-cyan-400">${carItems.find(c => c.id === currentCarId)?.name}</span>
                         <span class="text-sm text-stone-300 ml-2">(Delivers ${carItems.find(c => c.id === currentCarId)?.deliverySpeedMultiplier}x faster)</span>
                     </div>
                 ` : `
@@ -1295,7 +1650,7 @@
                 const canDeliverSoulLumber = equippedCar && equippedCar.deliversSoulLumber;
 
                 // Check general conditions for delivery
-                if (!currentCarId || !isLumberAvailable || isDelivering) {
+                if (!currentCarId || !isLumberAvailable || isDelivering || isQuesting || isSellingJunk) { // Added isQuesting and isSellingJunk
                     deliveryButtonDisabled = true;
                     deliveryButtonClasses = 'bg-stone-600 cursor-not-allowed';
                 }
@@ -1330,6 +1685,80 @@
             return deliveriesDiv;
         };
 
+        // New: renderQuestsView function
+        const renderQuestsView = () => {
+            const questsDiv = document.createElement('div');
+            questsDiv.className = "w-full h-[900px] bg-stone-800 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-hidden";
+            questsDiv.style.height = 'auto';
+            questsDiv.innerHTML = `
+                <h2 class="text-3xl font-bold text-orange-400 mb-6">Building Quests</h2>
+                <p class="text-lg text-stone-300 mb-4">Help build houses and get paid handsomely!</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl" id="questItemsContainer">
+                    <!-- Quest items will be dynamically added here -->
+                </div>
+
+                <!-- Quest Progress Bar -->
+                <div id="questProgressBarContainer" class="progress-bar-container w-full max-w-xs mt-6 ${isQuesting ? '' : 'hidden'}">
+                    <div id="questProgressBar" class="progress-bar progress-bar-orange" style="width: ${questProgress}%"></div>
+                </div>
+                <p id="questStatus" class="text-sm text-orange-400 ${isQuesting ? '' : 'hidden'}">Building ${questItems.find(q => q.id === currentQuestId)?.name}...</p>
+            `;
+
+            const questItemsContainer = questsDiv.querySelector('#questItemsContainer');
+            questItems.forEach(quest => {
+                const questCard = document.createElement('div');
+                let lumberIcon = '';
+                let currentLumberCount = 0;
+                let isLumberAvailable = false;
+                let questButtonText = 'Start Quest';
+                let questButtonDisabled = false;
+                let questButtonClasses = 'bg-orange-600 hover:bg-orange-700';
+
+                // Determine which lumber type is required and set icon/count
+                if (quest.lumberType === 'wood') {
+                    lumberIcon = woodIconUrl;
+                    currentLumberCount = woodCount;
+                    isLumberAvailable = woodCount >= quest.lumberRequired;
+                } else if (quest.lumberType === 'grapeLumber') {
+                    lumberIcon = grapeLumberIconUrl;
+                    currentLumberCount = grapeLumberCount;
+                    isLumberAvailable = grapeLumberCount >= quest.lumberRequired;
+                } else if (quest.lumberType === 'soulLumber') {
+                    lumberIcon = soulLumberIconUrl;
+                    currentLumberCount = soulLumberCount;
+                    isLumberAvailable = soulLumberCount >= quest.lumberRequired;
+                }
+
+                // Check general conditions for questing
+                if (!isLumberAvailable || isDelivering || isQuesting || isSellingJunk) { // Added isDelivering and isSellingJunk
+                    questButtonDisabled = true;
+                    questButtonClasses = 'bg-stone-600 cursor-not-allowed';
+                }
+
+                questCard.className = `bg-stone-900 p-4 rounded-lg shadow-md flex flex-col items-center border-2 border-stone-600
+                    ${questButtonDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg transition-shadow duration-200'}
+                `;
+                questCard.innerHTML = `
+                    <img src="${quest.imageUrl}" alt="${quest.name}" class="w-20 h-20 mb-3 rounded-full object-contain" />
+                    <h3 class="text-xl font-semibold text-stone-100">${quest.name}</h3>
+                    <p class="text-sm text-stone-300 text-center">${quest.description}</p>
+                    <p class="text-sm text-stone-300">Requires: ${quest.lumberRequired} <img src="${lumberIcon}" alt="${quest.lumberType} Icon" class="currency-icon inline-block" /></p>
+                    <p class="text-sm text-stone-300">Reward: ${quest.moneyReward} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                    <button class="mt-4 px-6 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                        ${questButtonClasses}"
+                        ${questButtonDisabled ? 'disabled' : ''}>
+                        ${questButtonText}
+                    </button>
+                `;
+                const startQuestButton = questCard.querySelector('button');
+                startQuestButton.addEventListener('click', () => startQuest(quest.id));
+                questItemsContainer.appendChild(questCard);
+            });
+
+            return questsDiv;
+        };
+
 
         const renderHomeView = () => {
             const homeContainer = document.createElement('div');
@@ -1350,11 +1779,11 @@
                         Shop
                     </button>
                     <button id="changeHomeBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
-                        ${homeSubView === 'changeHome' ? 'bg-green-700 hover:bg-green-800' : 'bg-zinc-700 hover:bg-zinc-600'}">
+                        ${homeSubView === 'changeHome' ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-zinc-700 hover:bg-zinc-600'}">
                         Change Home
                     </button>
                     <button id="buyHousesBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
-                        ${homeSubView === 'buyHouses' ? 'bg-yellow-700 hover:bg-yellow-800' : 'bg-zinc-700 hover:bg-zinc-600'}">
+                        ${homeSubView === 'buyHouses' ? 'bg-amber-700 hover:bg-amber-800' : 'bg-zinc-700 hover:bg-zinc-600'}">
                         Buy Houses
                     </button>
                     <button id="rearrangeFurnitureBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
@@ -1583,7 +2012,7 @@
                         Pets
                     </button>
                     <button id="generatorsCategoryBtn" class="px-4 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
-                        ${currentFurnitureCategory === 'generators' ? 'bg-yellow-700 hover:bg-yellow-800' : 'bg-zinc-700 hover:bg-zinc-600'}">
+                        ${currentFurnitureCategory === 'generators' ? 'bg-amber-700 hover:bg-amber-800' : 'bg-zinc-700 hover:bg-zinc-600'}">
                         Generators
                     </button>
                 </div>
@@ -1629,7 +2058,7 @@
                     <img src="${item.imageUrl}" alt="${item.name}" class="w-16 h-16 mb-2 rounded-md object-contain" />
                     <span class="font-semibold text-sm text-stone-100 text-center">${item.name}</span>
                     <span class="text-xs text-stone-300">Cost: ${item.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></span>
-                    ${item.category === 'generators' && item.generatesWoodPerSecond ? `<span class="text-xs text-green-400">Generates: ${item.generatesWoodPerSecond} wood/sec</span>` : ''}
+                    ${item.category === 'generators' && item.generatesWoodPerSecond ? `<span class="text-xs text-emerald-400">Generates: ${item.generatesWoodPerSecond} wood/sec</span>` : ''}
                     ${item.category === 'generators' && item.generatesSoulLumberPerSecond ? `<span class="text-xs text-red-400">Generates: ${item.generatesSoulLumberPerSecond} soul lumber/sec</span>` : ''}
                 `;
                 shopItem.addEventListener('click', () => {
@@ -1661,12 +2090,12 @@
                     if (house) {
                         const houseCard = document.createElement('div');
                         houseCard.className = `bg-stone-900 p-4 rounded-lg shadow-md flex flex-col items-center border-2
-                            ${currentHouseId === house.id ? 'border-blue-500 ring-4 ring-blue-200' : 'border-stone-600'}`;
+                            ${currentHouseId === house.id ? 'border-cyan-500 ring-4 ring-cyan-200' : 'border-stone-600'}`;
                         houseCard.innerHTML = `
                             <img src="${house.imageUrl}" alt="${house.name}" class="w-24 h-18 mb-3 rounded-md object-contain" />
                             <h4 class="text-lg font-semibold text-stone-100">${house.name}</h4>
                             <button class="mt-3 px-6 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
-                                ${currentHouseId === house.id ? 'bg-blue-600 cursor-default' : 'bg-indigo-600 hover:bg-indigo-700'}"
+                                ${currentHouseId === house.id ? 'bg-cyan-600 cursor-default' : 'bg-indigo-600 hover:bg-indigo-700'}"
                                 ${currentHouseId === house.id ? 'disabled' : ''}>
                                 ${currentHouseId === house.id ? 'Current Home' : 'Equip'}
                             </button>
@@ -1703,9 +2132,9 @@
                     houseCard.innerHTML = `
                         <img src="${house.imageUrl}" alt="${house.name}" class="w-24 h-18 mb-3 rounded-md object-contain" />
                         <h4 class="text-lg font-semibold text-stone-100">${house.name}</h4>
-                        <p class="text-md font-bold text-green-400 mt-2">Cost: ${house.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
+                        <p class="text-md font-bold text-emerald-400 mt-2">Cost: ${house.moneyCost} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
                         <button class="mt-3 px-6 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
-                            ${moneyCount >= house.moneyCost ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-stone-600 cursor-not-allowed'}"
+                            ${moneyCount >= house.moneyCost ? 'bg-amber-600 hover:bg-amber-700' : 'bg-stone-600 cursor-not-allowed'}"
                             ${moneyCount < house.moneyCost ? 'disabled' : ''}>
                             Buy
                         </button>
@@ -1775,9 +2204,11 @@
             inventoryDiv.className = "w-full bg-stone-800 rounded-lg shadow-inner p-8 flex flex-col items-center relative overflow-auto";
             inventoryDiv.style.height = 'auto'; // Allow content to dictate height
 
-            // Find the currently equipped axe and car
+            // Find the currently equipped axe, car, and backpack
             const currentAxe = axeItems.find(axe => axe.id === currentAxeId);
             const currentCar = carItems.find(car => car.id === currentCarId);
+            const currentBackpack = backpackItems.find(bp => bp.id === currentBackpackId);
+
 
             inventoryDiv.innerHTML = `
                 <h2 class="text-3xl font-bold text-stone-200 mb-6">Your Inventory</h2>
@@ -1785,14 +2216,23 @@
                     <div class="text-3xl font-semibold p-6 bg-yellow-950 rounded-lg shadow-md flex items-center justify-center">
                         <img src="${woodIconUrl}" alt="Wood Icon" class="currency-icon w-10 h-10" /> Lumber: <span class="text-yellow-400 ml-2" id="woodCount">${woodCount}</span>
                     </div>
-                    <div class="text-3xl font-semibold p-6 bg-green-950 rounded-lg shadow-md flex items-center justify-center">
-                        <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon w-10 h-10" /> Cash: <span class="text-green-400 ml-2" id="moneyCount">${moneyCount}</span>
+                    <div class="text-3xl font-semibold p-6 bg-emerald-950 rounded-lg shadow-md flex items-center justify-center">
+                        <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon w-10 h-10" /> Cash: <span class="text-emerald-400 ml-2" id="moneyCount">${moneyCount}</span>
                     </div>
                     <div class="text-3xl font-semibold p-6 bg-purple-950 rounded-lg shadow-md flex items-center justify-center ${grapeLumberCount > 0 || lumberMillUpgraded ? 'flex' : 'hidden'}">
                         <img src="${grapeLumberIconUrl}" alt="Grape Lumber Icon" class="currency-icon w-10 h-10" /> Grape Lumber: <span class="text-purple-400 ml-2" id="grapeLumberCount">${grapeLumberCount}</span>
                     </div>
                     <div class="text-3xl font-semibold p-6 bg-red-950 rounded-lg shadow-md flex items-center justify-center ${soulLumberCount > 0 ? 'flex' : 'hidden'}">
                         <img src="${soulLumberIconUrl}" alt="Soul Lumber Icon" class="currency-icon w-10 h-10" /> Soul Lumber: <span class="text-red-400 ml-2" id="soulLumberCount">${soulLumberCount}</span>
+                    </div>
+                    <div class="text-3xl font-semibold p-6 bg-gray-950 rounded-lg shadow-md flex items-center justify-center ${rustyCanCount > 0 ? 'flex' : 'hidden'}">
+                        <img src="${rustyCanIconUrl}" alt="Rusty Can Icon" class="currency-icon w-10 h-10" /> Rusty Cans: <span class="text-gray-400 ml-2" id="rustyCanCount">${rustyCanCount}</span>
+                    </div>
+                    <div class="text-3xl font-semibold p-6 bg-gray-950 rounded-lg shadow-md flex items-center justify-center ${garbageCount > 0 ? 'flex' : 'hidden'}">
+                        <img src="${garbageIconUrl}" alt="Garbage Icon" class="currency-icon w-10 h-10" /> Garbage: <span class="text-gray-400 ml-2" id="garbageCount">${garbageCount}</span>
+                    </div>
+                    <div class="text-3xl font-semibold p-6 bg-gray-950 rounded-lg shadow-md flex items-center justify-center ${screwsCount > 0 ? 'flex' : 'hidden'}">
+                        <img src="${screwsIconUrl}" alt="Screws Icon" class="currency-icon w-10 h-10" /> Screws: <span class="text-gray-400 ml-2" id="screwsCount">${screwsCount}</span>
                     </div>
                     <div class="text-3xl font-semibold p-6 bg-stone-900 rounded-lg shadow-md flex items-center justify-center ${totalIdleWoodPerSecond > 0 || totalIdleSoulLumberPerSecond > 0 ? 'flex' : 'hidden'}">
                         <img src="${woodIconUrl}" alt="Wood Icon" class="currency-icon w-10 h-10" /> Idle Wood Rate: <span class="text-yellow-400 ml-2" id="idleWoodRate">${totalIdleWoodPerSecond}/sec</span>
@@ -1801,12 +2241,21 @@
                         <img src="${soulLumberIconUrl}" alt="Soul Lumber Icon" class="currency-icon w-10 h-10" /> Idle Soul Lumber Rate: <span class="text-red-400 ml-2" id="idleSoulLumberRate">${totalIdleSoulLumberPerSecond}/sec</span>
                     </div>
 
+                    <!-- Inventory Capacity Display -->
+                    <div class="text-2xl font-semibold p-8 bg-stone-900 rounded-lg shadow-md flex flex-col items-center justify-center">
+                        <span class="mb-2">Inventory Space:</span>
+                        <span class="text-3xl font-bold text-purple-400 text-center">
+                            <span id="currentInventoryWeight">${currentInventoryWeight.toFixed(2)}</span> / <span id="inventoryCapacity">${inventoryCapacity}</span> kg
+                        </span>
+                        <span class="text-sm text-stone-300 mt-1 text-center">(${LUMBER_ITEM_WEIGHT}kg per wood/grape lumber, ${SOUL_LUMBER_ITEM_WEIGHT}kg per soul lumber)</span>
+                    </div>
+
                     <!-- Current Axe Display -->
                     <div id="currentAxeDisplay" class="text-2xl font-semibold p-8 bg-stone-900 rounded-lg shadow-md flex flex-col items-center justify-center ${currentAxe ? '' : 'hidden'}">
                         <span class="mb-2">Current Axe:</span>
                         ${currentAxe ? `
                             <img src="${currentAxe.imageUrl}" alt="${currentAxe.name}" class="w-16 h-16 rounded-full object-contain mb-2" />
-                            <span class="text-3xl font-bold text-blue-400 text-center">${currentAxe.name}</span>
+                            <span class="text-3xl font-bold text-cyan-400 text-center">${currentAxe.name}</span>
                             <span class="text-lg text-stone-300 mt-1 text-center">(Cuts ${currentAxe.cutSpeedMultiplier}x faster)</span>
                         ` : ''}
                     </div>
@@ -1816,8 +2265,18 @@
                         <span class="mb-2">Current Vehicle:</span>
                         ${currentCar ? `
                             <img src="${currentCar.imageUrl}" alt="${currentCar.name}" class="w-16 h-16 rounded-full object-contain mb-2" />
-                            <span class="text-3xl font-bold text-blue-400 text-center">${currentCar.name}</span>
+                            <span class="text-3xl font-bold text-cyan-400 text-center">${currentCar.name}</span>
                             <span class="text-lg text-stone-300 mt-1 text-center">(Money ${currentCar.moneyBonusMultiplier}x, Delivers ${currentCar.deliverySpeedMultiplier}x faster)</span>
+                        ` : ''}
+                    </div>
+
+                    <!-- Current Backpack Display -->
+                    <div id="currentBackpackDisplay" class="text-2xl font-semibold p-8 bg-stone-900 rounded-lg shadow-md flex flex-col items-center justify-center ${currentBackpack ? '' : 'hidden'}">
+                        <span class="mb-2">Current Backpack:</span>
+                        ${currentBackpack ? `
+                            <img src="${currentBackpack.imageUrl}" alt="${currentBackpack.name}" class="w-16 h-16 rounded-full object-contain mb-2" />
+                            <span class="text-3xl font-bold text-green-400 text-center">${currentBackpack.name}</span>
+                            <span class="text-lg text-stone-300 mt-1 text-center">(Capacity: ${DEFAULT_INVENTORY_CAPACITY + currentBackpack.capacityIncrease}kg)</span>
                         ` : ''}
                     </div>
                 </div>
@@ -1926,7 +2385,7 @@
             if (command.startsWith('debug give ')) {
                 const parts = command.substring('debug give '.length).trim().split(' ');
                 if (parts.length === 2) {
-                    const lumberType = parts[0].toLowerCase();
+                    const itemType = parts[0].toLowerCase();
                     const amount = parseInt(parts[1]);
 
                     if (isNaN(amount) || amount < 1 || amount > 120) {
@@ -1935,7 +2394,7 @@
                         return;
                     }
 
-                    switch (lumberType) {
+                    switch (itemType) {
                         case 'soul-lumber':
                             soulLumberCount += amount;
                             addDebugLog(`Gave ${amount} soul lumber.`);
@@ -1951,10 +2410,30 @@
                             addDebugLog(`Gave ${amount} normal lumber.`);
                             showMessage(`Gave ${amount} normal lumber!`, 'success');
                             break;
+                        case 'rusty-can':
+                            rustyCanCount += amount;
+                            addDebugLog(`Gave ${amount} rusty cans.`);
+                            showMessage(`Gave ${amount} rusty cans!`, 'success');
+                            break;
+                        case 'garbage':
+                            garbageCount += amount;
+                            addDebugLog(`Gave ${amount} garbage.`);
+                            showMessage(`Gave ${amount} garbage!`, 'success');
+                            break;
+                        case 'screws':
+                            screwsCount += amount;
+                            addDebugLog(`Gave ${amount} screws.`);
+                            showMessage(`Gave ${amount} screws!`, 'success');
+                            break;
+                        case 'money':
+                            moneyCount += amount;
+                            addDebugLog(`Gave ${amount} money.`);
+                            showMessage(`Gave ${amount} money!`, 'success');
+                            break;
                         default:
-                            addDebugLog(`Unknown lumber type for debug give: "${lumberType}"`);
-                            showMessage("Unknown lumber type. Use 'soul-lumber', 'grape-lumber', or 'normal-lumber'.", 'error');
-                            return; // Exit function if lumber type is unknown
+                            addDebugLog(`Unknown item type for debug give: "${itemType}"`);
+                            showMessage("Unknown item type. Use 'soul-lumber', 'grape-lumber', 'normal-lumber', 'rusty-can', 'garbage', 'screws', or 'money'.", 'error');
+                            return; // Exit function if item type is unknown
                     }
                     updateCurrencyDisplay();
                     saveGame();
@@ -1996,27 +2475,6 @@
                             window.location.reload(); // Reload the page to apply reset
                         }, 1500);
                         break;
-                    case 'givemoney 1000': // Example: give money
-                        moneyCount += 1000;
-                        addDebugLog("Gave 1000 money.");
-                        showMessage("Gave 1000 money!", 'success');
-                        updateCurrencyDisplay();
-                        saveGame();
-                        break;
-                    case 'givewood 500': // Example: give wood
-                        woodCount += 500;
-                        addDebugLog("Gave 500 wood.");
-                        showMessage("Gave 500 wood!", 'success');
-                        updateCurrencyDisplay();
-                        saveGame();
-                        break;
-                    case 'unlockbiomes': // Example: unlock biomes
-                        biomesUnlocked = true;
-                        addDebugLog("Biomes unlocked.");
-                        showMessage("Biomes unlocked!", 'success');
-                        renderApp();
-                        saveGame();
-                        break;
                     case 'debugcheatmakemerich': // New debug command
                         moneyCount += 10000;
                         addDebugLog("Gave 10000 money (debugcheatmakemerich).");
@@ -2032,6 +2490,13 @@
                         renderApp(); // Re-render to show biomes button
                         saveGame();
                         break;
+                    case 'debugunlockquests': // New debug command to unlock quests
+                        questsUnlocked = true;
+                        addDebugLog("Quests unlocked (debugunlockquests).");
+                        showMessage("Quests unlocked!", 'success');
+                        renderApp();
+                        saveGame();
+                        break;
                     case 'debugchangelog': // New debug command to display changelog
                         addDebugLog("--- Fetching Changelog ---");
                         fetch('assets/changelog.txt') // Path to the changelog file
@@ -2043,7 +2508,7 @@
                             })
                             .then(text => {
                                 addDebugLog("--- Changelog Content ---");
-                                text.split('\n').forEach(line => {
+                                text.split('n').forEach(line => {
                                     addDebugLog(line);
                                 });
                                 addDebugLog("--- End Changelog ---");
@@ -2075,11 +2540,19 @@
             moneyCount = 0;
             grapeLumberCount = 0;
             soulLumberCount = 0;
+            rustyCanCount = 0; // Reset rusty can count
+            garbageCount = 0; // Reset garbage count
+            screwsCount = 0; // Reset screws count
+            currentInventoryWeight = 0; // Reset inventory weight
+            inventoryCapacity = DEFAULT_INVENTORY_CAPACITY; // Reset inventory capacity
             currentView = 'forest';
             lastLocation = 'forest';
             selectedFurnitureType = null;
             sellWoodAmount = 1;
             sellGrapeWoodAmount = 1;
+            sellRustyCanAmount = 1; // Reset sell amount for rusty cans
+            sellGarbageAmount = 1; // Reset sell amount for garbage
+            sellScrewsAmount = 1; // Reset sell amount for screws
             isCutting = false;
             cuttingProgress = 0;
             cuttingIntervalRef = null;
@@ -2097,6 +2570,11 @@
             sellingGrapeProgress = 0;
             sellingGrapeIntervalRef = null;
             currentSellGrapeAmount = 0;
+            isSellingJunk = false;
+            sellingJunkProgress = 0;
+            sellingJunkIntervalRef = null;
+            currentSellJunkAmount = 0;
+            currentSellJunkType = '';
             currentHouseId = 'basic_home';
             ownedHouses = ['basic_home'];
             allHousesFurniture = { 'basic_home': [] };
@@ -2109,6 +2587,14 @@
             ownedCars = [];
             currentCarId = null;
             deliveriesUnlocked = false;
+            questsUnlocked = true; // Set to true for reset
+            ownedBackpacks = ['basic_backpack']; // Reset owned backpacks
+            currentBackpackId = 'basic_backpack'; // Reset current backpack
+            isQuesting = false; // Reset questing state
+            questProgress = 0;
+            questIntervalRef = null;
+            currentQuestId = null;
+            currentQuestLumberRequired = 0;
             totalIdleWoodPerSecond = 0;
             totalIdleSoulLumberPerSecond = 0;
             if (idleWoodGenerationInterval) {
@@ -2133,6 +2619,13 @@
                 return;
             }
 
+            // Prevent cutting if any other long process is active
+            if (isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk) {
+                showMessage("Cannot chop trees while another process is active!", 'error');
+                addDebugLog("Chop failed: Another process is active.");
+                return;
+            }
+
             // Get the trees array for the current biome
             const currentBiomeTrees = biomesData[currentView]?.trees;
             if (!currentBiomeTrees) {
@@ -2142,6 +2635,19 @@
 
             const treeToCut = currentBiomeTrees.find(tree => tree.id === treeId);
             if (!treeToCut) return;
+
+            // Determine the weight of the item being chopped
+            let itemWeight = LUMBER_ITEM_WEIGHT;
+            if (currentView === 'vampireForest') {
+                itemWeight = SOUL_LUMBER_ITEM_WEIGHT;
+            }
+
+            // Check if inventory is full before chopping
+            if (currentInventoryWeight + itemWeight > inventoryCapacity) {
+                showMessage("Inventory full! Sell some lumber or buy a bigger backpack.", 'error');
+                addDebugLog("Chop failed: Inventory full.");
+                return;
+            }
 
             const currentAxe = axeItems.find(axe => axe.id === currentAxeId);
             const effectiveCutTime = treeToCut.cutTime / currentAxe.cutSpeedMultiplier;
@@ -2207,6 +2713,7 @@
                             progressBarContainer.classList.add('hidden');
                         }
                     }
+                    updateCurrencyDisplay(); // Update inventory weight and capacity display
                     renderApp(); // Full re-render to update wood count and ensure all states are consistent
                     saveGame(); // Save game state after chopping a tree
                 }
@@ -2324,6 +2831,52 @@
             }
         };
 
+        // New: buyBackpack function
+        const buyBackpack = (backpackId) => {
+            const backpackToBuy = backpackItems.find(bp => bp.id === backpackId);
+            if (!backpackToBuy) return;
+
+            if (ownedBackpacks.includes(backpackId)) {
+                showMessage("You already own this backpack!", 'info');
+                currentBackpackId = backpackId; // Equip if already owned
+                updateInventoryCapacity(); // Update capacity immediately
+                renderApp(); // Re-render to update equipped backpack
+                saveGame(); // Save game state after equipping backpack
+                addDebugLog(`Already owned and equipped ${backpackToBuy.name}.`);
+                return;
+            }
+
+            if (moneyCount >= backpackToBuy.moneyCost) {
+                moneyCount -= backpackToBuy.moneyCost;
+                ownedBackpacks.push(backpackId);
+                currentBackpackId = backpackId; // Equip new backpack automatically
+                updateInventoryCapacity(); // Update capacity immediately
+                playPurchaseSound(); // Play purchase sound
+                showMessage(`Bought and equipped ${backpackToBuy.name}! Capacity increased to ${inventoryCapacity}kg!`, 'success');
+                addDebugLog(`Bought and equipped ${backpackToBuy.name} for ${backpackToBuy.moneyCost} money.`);
+                renderApp(); // Re-render to update money, owned backpacks, and equipped backpack
+                saveGame(); // Save game state after buying backpack
+            } else {
+                showMessage("Not enough money to buy " + backpackToBuy.name, 'error');
+                addDebugLog(`Failed to buy ${backpackToBuy.name}: Not enough money.`);
+            }
+        };
+
+        // New: equipBackpack function
+        const equipBackpack = (backpackId) => {
+            if (ownedBackpacks.includes(backpackId)) {
+                currentBackpackId = backpackId;
+                updateInventoryCapacity(); // Update capacity immediately
+                showMessage(`Equipped ${backpackItems.find(bp => bp.id === backpackId)?.name}! Capacity now ${inventoryCapacity}kg.`, 'success');
+                addDebugLog(`Equipped ${backpackItems.find(bp => bp.id === backpackId)?.name}.`);
+                renderApp(); // Re-render to update equipped backpack
+                saveGame(); // Save game state after equipping backpack
+            } else {
+                showMessage("You don't own this backpack.", 'error');
+                addDebugLog(`Failed to equip backpack ${backpackId}: Not owned.`);
+            }
+        };
+
         // New: startDelivery function
         const startDelivery = (routeId) => {
             if (!currentCarId) {
@@ -2334,6 +2887,12 @@
             if (isDelivering) {
                 showMessage("Already on a delivery!", 'info');
                 addDebugLog("Delivery failed: Already on a delivery.");
+                return;
+            }
+            // Prevent delivery if questing or selling junk is active
+            if (isQuesting || isSellingJunk) {
+                showMessage("Cannot start delivery while another process is active!", 'error');
+                addDebugLog("Delivery failed: Quest or junk selling is active.");
                 return;
             }
 
@@ -2410,12 +2969,122 @@
                     currentDeliveryRouteId = null;
                     currentDeliveryAmount = 0;
 
-                    // Removed delivery sound stop: if (deliverySound && deliverySound.state === 'started') { deliverySound.stop(); }
+                    // Removed delivery sound stop: if (deliverySound && deliverySound.state === 'started') { sellingSound.stop(); }
 
                     showMessage(`Delivered ${route.lumberRequired} ${route.lumberType} for ${route.moneyReward * equippedCar.moneyBonusMultiplier} money!`, 'success');
                     addDebugLog(`Completed delivery for ${route.name}. Earned ${route.moneyReward * equippedCar.moneyBonusMultiplier} money.`);
+                    updateCurrencyDisplay(); // Update inventory weight and capacity display
                     renderApp(); // Full re-render to update counts and hide progress bar
                     saveGame(); // Save game state after delivery
+                }
+            }, intervalTime);
+        };
+
+        // New: startQuest function
+        const startQuest = (questId) => {
+            if (isQuesting) {
+                showMessage("Already on a quest!", 'info');
+                addDebugLog("Quest failed: Already on a quest.");
+                return;
+            }
+            // Prevent questing if any other long process is active
+            if (isCutting || isSelling || isSellingGrape || isDelivering || isSellingJunk) {
+                showMessage("Cannot start a quest while another process is active!", 'error');
+                addDebugLog("Quest failed: Another process is active.");
+                return;
+            }
+
+            const quest = questItems.find(q => q.id === questId);
+            if (!quest) return;
+
+            let isLumberAvailable = false;
+            // Check required lumber type and amount
+            if (quest.lumberType === 'wood' && woodCount >= quest.lumberRequired) {
+                isLumberAvailable = true;
+            } else if (quest.lumberType === 'grapeLumber' && grapeLumberCount >= quest.lumberRequired) {
+                isLumberAvailable = true;
+            } else if (quest.lumberType === 'soulLumber' && soulLumberCount >= quest.lumberRequired) {
+                isLumberAvailable = true;
+            }
+
+            if (!isLumberAvailable) {
+                showMessage(`Not enough ${quest.lumberType} for this quest! Requires ${quest.lumberRequired} ${quest.lumberType}.`, 'error');
+                addDebugLog(`Quest failed: Not enough ${quest.lumberType}.`);
+                return;
+            }
+
+            isQuesting = true;
+            currentQuestId = questId;
+            currentQuestLumberRequired = quest.lumberRequired; // Store the amount of lumber being used
+            questProgress = 0;
+            renderApp(); // Re-render to show progress bar and disable buttons
+            addDebugLog(`Starting quest: ${quest.name}. Consuming ${quest.lumberRequired} ${quest.lumberType}.`);
+
+            const intervalTime = 50;
+            const totalSteps = quest.baseTime / intervalTime;
+            const progressPerStep = 100 / totalSteps;
+
+            questIntervalRef = setInterval(() => {
+                questProgress += progressPerStep;
+                const progressBar = document.getElementById('questProgressBar');
+                if (progressBar) {
+                    progressBar.style.width = `${questProgress}%`;
+                }
+
+                if (questProgress >= 100) {
+                    questProgress = 100;
+                    clearInterval(questIntervalRef);
+                    questIntervalRef = null;
+
+                    // Consume the correct lumber type
+                    if (quest.lumberType === 'wood') {
+                        woodCount -= quest.lumberRequired;
+                    } else if (quest.lumberType === 'grapeLumber') {
+                        grapeLumberCount -= quest.lumberRequired;
+                    } else if (quest.lumberType === 'soulLumber') {
+                        soulLumberCount -= quest.lumberRequired;
+                    }
+                    
+                    moneyCount += quest.moneyReward;
+
+                    // New: Award randomized junk items
+                    const junkItems = ["Rusty Can", "Garbage", "Screws"];
+                    const awardedItems = [];
+
+                    // Randomly select two unique items
+                    while (awardedItems.length < 2) {
+                        const randomIndex = Math.floor(Math.random() * junkItems.length);
+                        const selectedItem = junkItems[randomIndex];
+                        if (!awardedItems.includes(selectedItem)) {
+                            awardedItems.push(selectedItem);
+                        }
+                    }
+
+                    let rewardMessage = `Quest "${quest.name}" completed! Earned ${quest.moneyReward} money.`;
+                    awardedItems.forEach(item => {
+                        const amount = Math.floor(Math.random() * 5) + 1; // Random amount between 1 and 5
+                        if (item === "Rusty Can") {
+                            rustyCanCount += amount;
+                            rewardMessage += ` Received ${amount} Rusty Can(s).`;
+                        } else if (item === "Garbage") {
+                            garbageCount += amount;
+                            rewardMessage += ` Received ${amount} Garbage.`;
+                        } else if (item === "Screws") {
+                            screwsCount += amount;
+                            rewardMessage += ` Received ${amount} Screw(s).`;
+                        }
+                    });
+
+                    isQuesting = false;
+                    questProgress = 0;
+                    currentQuestId = null;
+                    currentQuestLumberRequired = 0;
+
+                    showMessage(rewardMessage, 'success');
+                    addDebugLog(`Completed quest "${quest.name}". Earned ${quest.moneyReward} money and junk items.`);
+                    updateCurrencyDisplay(); // Update inventory weight and capacity display
+                    renderApp(); // Full re-render to update counts and hide progress bar
+                    saveGame(); // Save game state after quest completion
                 }
             }, intervalTime);
         };
@@ -2433,8 +3102,8 @@
                 addDebugLog("Sell wood failed: Not enough wood.");
                 return;
             }
-            if (isSelling || isSellingGrape || isDelivering) { // Disable if any selling/delivery process is active
-                showMessage("Already processing a sale or delivery!", 'info');
+            if (isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk) { // Disable if any selling/delivery/quest process is active
+                showMessage("Already processing a sale, delivery, or quest!", 'info');
                 addDebugLog("Sell wood failed: Another process is active.");
                 return;
             }
@@ -2474,6 +3143,16 @@
                         showMessage("Biomes unlocked!", 'success');
                         addDebugLog("Biomes unlocked.");
                     }
+                    // New: Check for quests unlock condition (e.g., after earning a certain amount of money)
+                    // Removed this check as quests are now unlocked by default
+                    /*
+                    if (moneyCount >= 500 && !questsUnlocked) {
+                        questsUnlocked = true;
+                        showMessage("Quests unlocked! Check the new 'Quests' tab!", 'success');
+                        addDebugLog("Quests unlocked.");
+                    }
+                    */
+
 
                     isSelling = false;
                     sellingProgress = 0;
@@ -2483,6 +3162,7 @@
 
                     showMessage(`Sold ${amountToSell} wood for ${amountToSell * WOOD_TO_MONEY_RATE} money.`, 'success');
                     addDebugLog(`Sold ${amountToSell} wood.`);
+                    updateCurrencyDisplay(); // Update inventory weight and capacity display
                     renderApp(); // Full re-render to update counts and hide progress bar
                     saveGame(); // Save game state after selling wood
                 }
@@ -2509,8 +3189,8 @@
                 addDebugLog("Sell grape wood failed: Not enough grape lumber.");
                 return;
             }
-            if (isSelling || isSellingGrape || isDelivering) { // Disable if any selling/delivery process is active
-                showMessage("Already processing a sale or delivery!", 'info');
+            if (isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk) { // Disable if any selling/delivery/quest process is active
+                showMessage("Already processing a sale, delivery, or quest!", 'info');
                 addDebugLog("Sell grape wood failed: Another process is active.");
                 return;
             }
@@ -2521,7 +3201,7 @@
             renderApp(); // Re-render to show progress bar and disable button
             addDebugLog(`Starting to sell ${amountToSell} grape lumber.`);
 
-            // Removed selling sound start: if (sellingSound && sellingSound.state === 'started') { sellingSound.start(); }
+            // Removed selling sound start: if (sellingSound && sellingSound.loaded) { sellingSound.start(); }
 
             const totalSellTime = amountToSell * SELL_TIME_PER_GRAPE_WOOD_MS;
             const intervalTime = 50;
@@ -2551,8 +3231,101 @@
 
                     showMessage(`Sold ${amountToSell} Grape Lumber for ${amountToSell * GRAPE_WOOD_TO_MONEY_RATE} money.`, 'success');
                     addDebugLog(`Sold ${amountToSell} grape lumber.`);
+                    updateCurrencyDisplay(); // Update inventory weight and capacity display
                     renderApp(); // Full re-render to update counts and hide progress bar
                     saveGame(); // Save game state after selling grape lumber
+                }
+            }, intervalTime);
+        };
+
+        // New: Function to sell junk items (Rusty Can, Garbage, Screws)
+        const sellJunk = (itemType, amountToSell) => {
+            if (isNaN(amountToSell) || amountToSell <= 0) {
+                showMessage("Please enter a valid amount.", 'error');
+                addDebugLog(`Sell junk failed: Invalid amount (${amountToSell}).`);
+                return;
+            }
+
+            let currentItemCount;
+            let moneyRate;
+            let itemName;
+
+            switch (itemType) {
+                case 'rustyCan':
+                    currentItemCount = rustyCanCount;
+                    moneyRate = RUSTY_CAN_TO_MONEY_RATE;
+                    itemName = 'Rusty Can(s)';
+                    break;
+                case 'garbage':
+                    currentItemCount = garbageCount;
+                    moneyRate = GARBAGE_TO_MONEY_RATE;
+                    itemName = 'Garbage';
+                    break;
+                case 'screws':
+                    currentItemCount = screwsCount;
+                    moneyRate = SCREWS_TO_MONEY_RATE;
+                    itemName = 'Screw(s)';
+                    break;
+                default:
+                    addDebugLog(`Unknown junk item type: ${itemType}`);
+                    showMessage("Unknown junk item type.", 'error');
+                    return;
+            }
+
+            if (currentItemCount < amountToSell) {
+                showMessage(`Not enough ${itemName} to sell that amount!`, 'error');
+                addDebugLog(`Sell junk failed: Not enough ${itemName}.`);
+                return;
+            }
+            if (isSelling || isSellingGrape || isDelivering || isQuesting || isSellingJunk) {
+                showMessage("Already processing a sale, delivery, or quest!", 'info');
+                addDebugLog("Sell junk failed: Another process is active.");
+                return;
+            }
+
+            isSellingJunk = true;
+            currentSellJunkAmount = amountToSell;
+            currentSellJunkType = itemName;
+            sellingJunkProgress = 0;
+            renderApp(); // Re-render to show progress bar and disable buttons
+            addDebugLog(`Starting to sell ${amountToSell} ${itemName}.`);
+
+            const totalSellTime = amountToSell * SELL_TIME_PER_JUNK_MS;
+            const intervalTime = 50;
+            const totalSteps = totalSellTime / intervalTime;
+            const progressPerStep = 100 / totalSteps;
+
+            sellingJunkIntervalRef = setInterval(() => {
+                sellingJunkProgress += progressPerStep;
+                const progressBar = document.getElementById('sellingJunkProgressBar');
+                if (progressBar) {
+                    progressBar.style.width = `${sellingJunkProgress}%`;
+                }
+
+                if (sellingJunkProgress >= 100) {
+                    sellingJunkProgress = 100;
+                    clearInterval(sellingJunkIntervalRef);
+                    sellingJunkIntervalRef = null;
+
+                    if (itemType === 'rustyCan') {
+                        rustyCanCount -= currentSellJunkAmount;
+                    } else if (itemType === 'garbage') {
+                        garbageCount -= currentSellJunkAmount;
+                    } else if (itemType === 'screws') {
+                        screwsCount -= currentSellJunkAmount;
+                    }
+                    moneyCount += (currentSellJunkAmount * moneyRate);
+
+                    isSellingJunk = false;
+                    sellingJunkProgress = 0;
+                    currentSellJunkAmount = 0;
+                    currentSellJunkType = '';
+
+                    showMessage(`Sold ${amountToSell} ${itemName} for ${amountToSell * moneyRate} money.`, 'success');
+                    addDebugLog(`Sold ${amountToSell} ${itemName}.`);
+                    updateCurrencyDisplay(); // Update inventory weight and capacity display
+                    renderApp(); // Full re-render to update counts and hide progress bar
+                    saveGame(); // Save game state after selling junk
                 }
             }, intervalTime);
         };
@@ -2810,7 +3583,7 @@
                             <div class="flex items-center gap-2 mb-2">
                                 <input type="number" id="moneyAmount" min="1" value="1" class="w-24 p-2 border border-stone-600 rounded-md text-center text-lg font-semibold bg-stone-700 text-stone-100" />
                                 <button id="depositMoneyBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-white font-semibold">Deposit</button>
-                                <button id="withdrawMoneyBtn" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md text-white font-semibold">Withdraw</button>
+                                <button id="withdrawMoneyBtn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-md text-white font-semibold">Withdraw</button>
                             </div>
                             <p class="text-sm text-stone-400">Your Money: ${moneyCount} <img src="${moneyIconUrl}" alt="Money Icon" class="currency-icon inline-block" /></p>
                         </div>
@@ -2870,7 +3643,7 @@
                 currentOpenChestId = null;
                 addDebugLog("Closed chest inventory.");
             }
-            renderApp(); // Re-render to ensure main UI is updated if any counts changed
+            updateCurrencyDisplay(); // Re-render to ensure main UI is updated if any counts changed
         };
 
         const updateChestInventoryDisplay = (chestId) => {
@@ -3009,11 +3782,26 @@
             if (totalIdleWoodPerSecond > 0 || totalIdleSoulLumberPerSecond > 0) {
                 // Set interval to add resources every second
                 idleWoodGenerationInterval = setInterval(() => {
+                    // Temporarily store the current weight before adding
+                    const currentWeightBeforeGeneration = calculateCurrentInventoryWeight();
+
                     if (totalIdleWoodPerSecond > 0) {
-                        woodCount += totalIdleWoodPerSecond;
+                        // Check inventory capacity before adding idle wood
+                        if (currentWeightBeforeGeneration + (totalIdleWoodPerSecond * LUMBER_ITEM_WEIGHT) <= inventoryCapacity) {
+                            woodCount += totalIdleWoodPerSecond;
+                        } else {
+                            addDebugLog("Idle wood generation paused: Inventory full.");
+                            showMessage("Idle wood generation paused: Inventory full!", 'info', 5000);
+                        }
                     }
                     if (totalIdleSoulLumberPerSecond > 0) {
-                        soulLumberCount += totalIdleSoulLumberPerSecond;
+                        // Check inventory capacity before adding idle soul lumber
+                        if (currentWeightBeforeGeneration + (totalIdleSoulLumberPerSecond * SOUL_LUMBER_ITEM_WEIGHT) <= inventoryCapacity) {
+                            soulLumberCount += totalIdleSoulLumberPerSecond;
+                        } else {
+                            addDebugLog("Idle soul lumber generation paused: Inventory full.");
+                            showMessage("Idle soul lumber generation paused: Inventory full!", 'info', 5000);
+                        }
                     }
                     // Only update the display if the inventory view is currently active
                     if (currentView === 'inventory') {
@@ -3049,6 +3837,9 @@
                 moneyCount: moneyCount,
                 grapeLumberCount: grapeLumberCount, // New: Save grape lumber count
                 soulLumberCount: soulLumberCount, // New: Save soul lumber count
+                rustyCanCount: rustyCanCount, // New: Save rusty can count
+                garbageCount: garbageCount, // New: Save garbage count
+                screwsCount: screwsCount, // New: Save screws count
                 currentAxeId: currentAxeId,
                 ownedAxes: ownedAxes,
                 currentHouseId: currentHouseId, // Save current house
@@ -3063,8 +3854,11 @@
                 ownedCars: ownedCars, // New: Save owned cars
                 currentCarId: currentCarId, // New: Save current car
                 deliveriesUnlocked: deliveriesUnlocked, // New: Save deliveries unlocked state
+                questsUnlocked: questsUnlocked, // New: Save quests unlocked state
                 totalIdleWoodPerSecond: totalIdleWoodPerSecond, // Save idle wood rate
                 totalIdleSoulLumberPerSecond: totalIdleSoulLumberPerSecond, // New: Save idle soul lumber rate
+                ownedBackpacks: ownedBackpacks, // Save owned backpacks
+                currentBackpackId: currentBackpackId, // Save current backpack
                 // New: Music related saves
                 isBackgroundMusicPlaying: isBackgroundMusicPlaying,
                 musicVolume: musicVolume
@@ -3088,6 +3882,9 @@
                     moneyCount = gameState.moneyCount || 0;
                     grapeLumberCount = gameState.grapeLumberCount || 0; // New: Load grape lumber count
                     soulLumberCount = gameState.soulLumberCount || 0; // New: Load soul lumber count
+                    rustyCanCount = gameState.rustyCanCount || 0; // New: Load rusty can count
+                    garbageCount = gameState.garbageCount || 0; // New: Load garbage count
+                    screwsCount = gameState.screwsCount || 0; // New: Load screws count
                     currentAxeId = gameState.currentAxeId || 'basic_axe';
                     ownedAxes = gameState.ownedAxes || ['basic_axe'];
                     currentHouseId = gameState.currentHouseId || 'basic_home';
@@ -3122,8 +3919,11 @@
                     ownedCars = gameState.ownedCars || []; // New: Load owned cars
                     currentCarId = gameState.currentCarId || null; // New: Load current car
                     deliveriesUnlocked = gameState.deliveriesUnlocked !== undefined ? gameState.deliveriesUnlocked : false; // New: Load deliveries unlocked state
+                    questsUnlocked = gameState.questsUnlocked !== undefined ? gameState.questsUnlocked : true; // Set to true by default
                     totalIdleWoodPerSecond = gameState.totalIdleWoodPerSecond || 0; // Load idle wood rate
                     totalIdleSoulLumberPerSecond = gameState.totalIdleSoulLumberPerSecond || 0; // New: Load idle soul lumber rate
+                    ownedBackpacks = gameState.ownedBackpacks || ['basic_backpack']; // Load owned backpacks
+                    currentBackpackId = gameState.currentBackpackId || 'basic_backpack'; // Load current backpack
                     // New: Music related loads
                     isBackgroundMusicPlaying = gameState.isBackgroundMusicPlaying !== undefined ? gameState.isBackgroundMusicPlaying : false;
                     musicVolume = gameState.musicVolume !== undefined ? gameState.musicVolume : 0.5;
@@ -3141,6 +3941,9 @@
                 moneyCount = 0;
                 grapeLumberCount = 0; // New: Reset grape lumber count
                 soulLumberCount = 0; // New: Reset soul lumber count
+                rustyCanCount = 0; // Reset rusty can count
+                garbageCount = 0; // Reset garbage count
+                screwsCount = 0; // Reset screws count
                 currentAxeId = 'basic_axe';
                 ownedAxes = ['basic_axe'];
                 currentHouseId = 'basic_home';
@@ -3156,8 +3959,11 @@
                 ownedCars = []; // New: Reset owned cars
                 currentCarId = null; // New: Reset current car
                 deliveriesUnlocked = false; // New: Reset deliveries unlocked state
+                questsUnlocked = true; // Set to true for new game
                 totalIdleWoodPerSecond = 0; // Reset idle wood rate
                 totalIdleSoulLumberPerSecond = 0; // New: Reset idle soul lumber rate
+                ownedBackpacks = ['basic_backpack']; // Reset owned backpacks
+                currentBackpackId = 'basic_backpack'; // Reset current backpack
                 // New: Music related resets
                 isBackgroundMusicPlaying = false;
                 musicVolume = 0.5;
@@ -3176,6 +3982,14 @@
             currentSellGrapeAmount = 0;
             clearInterval(sellingGrapeIntervalRef);
             sellingGrapeIntervalRef = null;
+
+            // New: Reset junk selling states
+            isSellingJunk = false;
+            sellingJunkProgress = 0;
+            currentSellJunkAmount = 0;
+            currentSellJunkType = '';
+            clearInterval(sellingJunkIntervalRef);
+            sellingJunkIntervalRef = null;
             
             isCutting = false;
             cuttingProgress = 0;
@@ -3190,8 +4004,16 @@
             currentDeliveryAmount = 0;
             clearInterval(deliveryIntervalRef);
             deliveryIntervalRef = null;
-            // Removed delivery sound stop: if (deliverySound && deliverySound.state === 'started') { deliverySound.stop(); }
+            // Removed delivery sound stop: if (deliverySound && deliverySound.state === 'started') { sellingSound.stop(); }
             
+            // New: Reset quest states
+            isQuesting = false;
+            questProgress = 0;
+            currentQuestId = null;
+            currentQuestLumberRequired = 0;
+            clearInterval(questIntervalRef);
+            questIntervalRef = null;
+
             // Reset furniture modes
             isRearrangingFurniture = false;
             isDeletingFurniture = false;
@@ -3202,6 +4024,8 @@
             checkVampireForestUnlock();
             // Start idle generation after loading game state
             startOrUpdateIdleGeneration();
+            // Update inventory capacity after loading
+            updateInventoryCapacity();
         };
 
         // --- Music Control Functions ---
@@ -3285,8 +4109,8 @@
 
             // Header
             const header = document.createElement('h1');
-            header.className = "text-4xl font-bold text-red-400 mb-6"; // Changed header color
-            header.textContent = "LUMBER TYCOON";
+            header.className = "text-4xl font-bold text-rose-400 mb-6"; // Changed header color
+            header.textContent = "LUMBER TYCOON | QUEST EXPANSION";
             appRoot.appendChild(header);
 
             // Navigation Buttons
@@ -3309,6 +4133,12 @@
                 case 'carShop': // Car Shop is now a sub-view of Shops
                     appRoot.appendChild(renderCarShopView());
                     break;
+                case 'backpackShop': // New case for Backpack Shop
+                    appRoot.appendChild(renderBackpackShopView());
+                    break;
+                case 'buySellShop': // New case for Buy & Sell Shop
+                    appRoot.appendChild(renderBuySellShopView());
+                    break;
                 case 'home':
                     appRoot.appendChild(renderHomeView());
                     break;
@@ -3323,6 +4153,9 @@
                     break;
                 case 'deliveries': // New case for deliveries
                     appRoot.appendChild(renderDeliveriesView());
+                    break;
+                case 'quests': // New case for quests
+                    appRoot.appendChild(renderQuestsView());
                     break;
                 case 'inventory': // New case for inventory
                     appRoot.appendChild(renderInventoryView());

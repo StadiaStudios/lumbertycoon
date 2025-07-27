@@ -1,5 +1,9 @@
 DLCs
 - Demonics
+- Quest Expansion
+
+V1.10.3- - -Quest Expansion
+Tweaks Game Prices. Adds Quests. Replaces Furniture Items: Demonic Sofa. Demonic Chair. Outdoor Pool. Demonic Chest. & Demonic Plant. Updates Shops Page. Adds 3 New collectibles: "Rusty Can" "Garbage" "Screws" When completing quests. Adds a new shop "Buy & Sell" Where you can sell items. Adds BackPacks Along with Backpack store. Inventory weight now implemented.
 
 V1.9.3- - -
 New Cursors when playing on PC.

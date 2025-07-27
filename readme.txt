@@ -12,7 +12,6 @@ Buy a Car or ATV.
 make deliveries.
 
 If your unsure on Debugging. the Commands are listed below:
-other cheats are in the cheats.txt file.
 
 - 1. debugresetprog | Resets all progress
 - 2. debugcheat(cheatname) | Activate cheats (You have to guess it! Good Luck.)
