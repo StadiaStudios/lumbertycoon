@@ -1,6 +1,9 @@
 DLCs
 - Demonics
 
+V1.9.3- - -
+New Cursors when playing on PC.
+
 V1.8.3- - -
 Moves Debug to Settings Page. Settings displays Version. Fixes mobile users can open chests.
 

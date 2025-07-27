@@ -32,6 +32,10 @@
           /* Prevent double-tap zoom on mobile */
           touch-action: manipulation;
         }
+        html, body {
+        cursor: url("cursor.ico"), default;
+        /* just change the cursor.ico path to your location */
+         }
         /* Hide scrollbar for Webkit browsers (Chrome, Safari) */
         body::-webkit-scrollbar {
             display: none;
@@ -64,6 +68,11 @@
             scrollbar-color: #57534e #292524; /* thumb color track color */
         }
 
+        /* New: Custom cursor for buttons on hover */
+        button:hover {
+            cursor: url("cursor-hover.ico"), pointer;
+        }
+
         .app-container {
             width: 100%;
             max-width: 4xl; /* Equivalent to max-w-4xl */
@@ -88,9 +97,11 @@
           box-shadow: none; /* Removed box-shadow to remove the "border" effect */
           border: none; /* Explicitly remove any border */
           z-index: 1; /* Ensure it's below the progress bar */
+          
         }
         .tree-image:hover {
           transform: scale(1.05);
+          cursor: url("cursor-hover.ico"), default;
         }
         .animate-shake {
           animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
@@ -150,10 +161,12 @@
         .shop-item:hover {
           transform: translateY(-2px);
           box-shadow: 0 6px 10px rgba(0,0,0,0.25);
+          cursor: url("cursor-hover.ico"), default;
         }
         .shop-item.selected {
           border: 3px solid #6366f1; /* Indigo-500 */
           box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.3);
+          cursor: url("cursor-hover.ico"), default;
         }
 
         .progress-bar-container {
@@ -344,7 +357,7 @@
 
     <script type="module">
         // Game version constant
-        const GAME_VERSION = "1.8.3";
+        const GAME_VERSION = "1.9.3";
 
         // Game state variables
         let woodCount = 0;
