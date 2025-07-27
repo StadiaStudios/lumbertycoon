@@ -13,9 +13,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Lumber Tycoon | STADIASTUDIOS">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0c0a09"/> <!-- Updated theme color for dark theme (stone-950) -->
+    <!-- Theme color will be dynamically set by JavaScript based on activeTheme -->
+    <meta name="theme-color" id="themeMetaColor" content="#0c0a09"/>
 
     <style>
+        /* Base styles, will be overridden by theme-specific classes */
         body {
           font-family: 'Inter', sans-serif;
           margin: 0;
@@ -24,6 +26,7 @@
           justify-content: center;
           align-items: flex-start; /* Align to top for better content flow */
           min-height: 10vh;
+          /* Default to dark theme colors */
           background-color: #0c0a09; /* Tailwind stone-950 */
           color: #d6d3d1; /* Tailwind stone-300 */
           /* Hide scrollbar for various browsers */
@@ -33,16 +36,15 @@
           touch-action: manipulation;
         }
         html, body {
-        cursor: url("cursor.ico"), default;
-        /* just change the cursor.ico path to your location */
-         }
+            cursor: url("cursor.ico"), default;
+            /* just change the cursor.ico path to your location */
+        }
         /* Hide scrollbar for Webkit browsers (Chrome, Safari) */
         body::-webkit-scrollbar {
             display: none;
         }
 
-        /* Custom Scrollbar Styles */
-        /* For Webkit browsers (Chrome, Safari) */
+        /* Custom Scrollbar Styles (Default to Dark Theme) */
         ::-webkit-scrollbar {
             width: 12px; /* Width of the scrollbar */
         }
@@ -314,6 +316,101 @@
             opacity: 0;
             pointer-events: none;
         }
+
+        /* --- Theme Specific Styles --- */
+        /* Dark Theme (Default) */
+        .theme-dark {
+            background-color: #0c0a09; /* stone-950 */
+            color: #d6d3d1; /* stone-300 */
+        }
+        .theme-dark .app-container {
+            background-color: #1c1917; /* stone-900 */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+        }
+        .theme-dark .modal-content {
+            background-color: #1c1917; /* stone-900 */
+            color: #d6d3d1;
+        }
+        .theme-dark #loading-screen {
+            background-color: #0c0a09;
+        }
+        .theme-dark .home-grid {
+            background-color: #1c1917; /* stone-900 */
+            border: 2px dashed #57534e; /* stone-600 */
+        }
+        .theme-dark .shop-item,
+        .theme-dark .bg-stone-900 { /* General dark background for cards/sections */
+            background-color: #1c1917;
+        }
+        .theme-dark .bg-stone-800 { /* General slightly lighter dark background */
+            background-color: #292524;
+        }
+        .theme-dark .text-stone-100 { color: #f5f5f4; }
+        .theme-dark .text-stone-300 { color: #d6d3d1; }
+        .theme-dark .text-stone-600 { color: #78716c; }
+        .theme-dark .border-stone-600 { border-color: #78716c; }
+        .theme-dark .bg-stone-700 { background-color: #44403c; } /* For inputs, etc. */
+
+        /* Dark Theme Scrollbar */
+        .theme-dark ::-webkit-scrollbar-track { background: #292524; }
+        .theme-dark ::-webkit-scrollbar-thumb { background: #57534e; border: 3px solid #292524; }
+        .theme-dark ::-webkit-scrollbar-thumb:hover { background: #78716c; }
+
+        /* Light Theme */
+        .theme-light {
+            background-color: #f8fafc; /* slate-50 */
+            color: #1e293b; /* slate-800 */
+        }
+        .theme-light .app-container {
+            background-color: #e2e8f0; /* slate-200 */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .theme-light .modal-content {
+            background-color: #e2e8f0; /* slate-200 */
+            color: #1e293b;
+        }
+        .theme-light #loading-screen {
+            background-color: #f8fafc;
+        }
+        .theme-light .home-grid {
+            background-color: #cbd5e1; /* slate-300 */
+            border: 2px dashed #94a3b8; /* slate-400 */
+        }
+        .theme-light .shop-item,
+        .theme-light .bg-stone-900 { /* General card/section background */
+            background-color: #cbd5e1; /* slate-300 */
+        }
+        .theme-light .bg-stone-800 { /* General slightly lighter background */
+            background-color: #e2e8f0; /* slate-200 */
+        }
+        .theme-light .text-stone-100 { color: #1e293b; } /* Dark text for headings */
+        .theme-light .text-stone-300 { color: #475569; } /* Darker text for paragraphs */
+        .theme-light .text-stone-600 { color: #64748b; } /* Lighter text for disabled buttons */
+        .theme-light .border-stone-600 { border-color: #94a3b8; } /* Lighter border */
+        .theme-light .bg-stone-700 { background-color: #94a3b8; } /* For inputs, etc. */
+
+        /* Light Theme Scrollbar */
+        .theme-light ::-webkit-scrollbar-track { background: #e2e8f0; }
+        .theme-light ::-webkit-scrollbar-thumb { background: #94a3b8; border: 3px solid #e2e8f0; }
+        .theme-light ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Common styles for nav buttons (colors are set dynamically) */
+        .nav-button-base {
+            padding: 0.75rem 1rem; /* px-4 py-3 */
+            border-radius: 9999px; /* rounded-full */
+            font-weight: 600; /* font-semibold */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-lg */
+            transition: all 0.2s ease-in-out;
+        }
+        .nav-button-active {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1); /* Deeper shadow */
+            transform: translateY(-2px); /* Slight lift */
+        }
+        .nav-button-inactive:hover {
+            box-shadow: 0 6px 10px rgba(0,0,0,0.25);
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
@@ -472,6 +569,10 @@
         let backgroundMusic;
         let musicVolume = 0.5; // Default volume
         let isBackgroundMusicPlaying = false;
+
+        // New: Theme state variable
+        let activeTheme = 'dark'; // 'dark' or 'light'
+        const LOCAL_STORAGE_THEME_KEY = 'lumberTycoonTheme';
 
         // Tone.js Players for sound effects
         let hoverSound; // This will now be used for hover sounds
@@ -698,7 +799,7 @@
             { id: 'cottage_quest', name: 'Cozy Cottage Construction', description: 'Construct a cozy cottage for a growing family.', lumberType: 'wood', lumberRequired: 1500, moneyReward: 4500, baseTime: 60000, imageUrl: 'assets/quests/cottage.png' },
             { id: 'mansion_quest', name: 'Grand Mansion Project', description: 'Undertake the grand project of building a mansion.', lumberType: 'wood', lumberRequired: 5000, moneyReward: 15000, baseTime: 120000, imageUrl: 'assets/quests/grand-mansion.png' },
             { id: 'grape_house_quest', name: 'Purple Dream Home', description: 'Build a unique home using rare grape lumber.', lumberType: 'grapeLumber', lumberRequired: 350, moneyReward: 5000, baseTime: 90000, imageUrl: 'assets/quests/purple-house.png' },
-            { id: 'soul_sanctuary_quest', name: 'Soul Sanctuary', description: 'Construct a mystical sanctuary from soul lumber.', lumberType: 'soulLumber', lumberRequired: 100, moneyReward: 6000, baseTime: 180000, imageUrl: 'assets/quests/soul-sanctuary.png' },
+            { id: 'soul_sanctuary_quest', name: 'Soul Sanctuary', description: 'Construct a mystical sanctuary from soul lumber.', lumberType: 'soulLumber', moneyReward: 100, moneyReward: 6000, baseTime: 180000, imageUrl: 'assets/quests/soul-sanctuary.png' },
         ];
 
 
@@ -896,7 +997,7 @@
                 // Use img tag for icon
                 button.innerHTML = `<img src="${iconUrl}" alt="${label} Icon" class="nav-icon" />${label}`;
                 // Adjusted px-6 to px-4 for slightly less horizontal padding on buttons
-                button.className = `px-4 py-3 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out ${currentView === viewName ? activeClass : inactiveClass}`;
+                button.className = `nav-button-base ${currentView === viewName ? activeClass + ' nav-button-active' : inactiveClass + ' nav-button-inactive'}`;
                 
                 // Add hover sound listeners
                 button.addEventListener('mouseover', playHoverSound);
@@ -2432,6 +2533,19 @@
                     <div class="bg-stone-900 p-4 rounded-lg shadow-md text-center">
                         <p class="text-lg font-semibold text-stone-100">Game Version: ${GAME_VERSION}</p>
                     </div>
+                    <div class="bg-stone-900 p-4 rounded-lg shadow-md flex flex-col items-center gap-2">
+                        <h3 class="text-xl font-semibold text-stone-100">Theme</h3>
+                        <div class="flex gap-4">
+                            <button id="darkThemeBtn" class="px-6 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                                ${activeTheme === 'dark' ? 'bg-blue-600' : 'bg-stone-600 hover:bg-stone-700'}">
+                                Dark Theme
+                            </button>
+                            <button id="lightThemeBtn" class="px-6 py-2 rounded-full font-semibold text-white shadow-md transition-all duration-200 ease-in-out
+                                ${activeTheme === 'light' ? 'bg-blue-600' : 'bg-stone-600 hover:bg-stone-700'}">
+                                Light Theme
+                            </button>
+                        </div>
+                    </div>
                     <button id="goToDebugBtn" class="px-8 py-4 rounded-full font-semibold text-white shadow-lg transition-all duration-200 ease-in-out bg-pink-600 hover:bg-pink-700 flex items-center justify-center">
                         <img src="${debugIconUrl}" alt="Debug Icon" class="nav-icon mr-2" />Debug Console
                     </button>
@@ -2443,6 +2557,16 @@
                 currentView = 'debug';
                 renderApp();
                 saveGame();
+            });
+
+            settingsDiv.querySelector('#darkThemeBtn').addEventListener('click', () => {
+                playButtonClickSound();
+                setTheme('dark');
+            });
+
+            settingsDiv.querySelector('#lightThemeBtn').addEventListener('click', () => {
+                playButtonClickSound();
+                setTheme('light');
             });
 
             return settingsDiv;
@@ -2623,6 +2747,7 @@
         const resetGameProgress = () => {
             localStorage.removeItem(LOCAL_STORAGE_KEY);
             localStorage.removeItem(LOCAL_STORAGE_FIRST_LOAD_KEY); // Reset first load flag too
+            localStorage.removeItem(LOCAL_STORAGE_THEME_KEY); // Reset theme
             // Reset all global game state variables to their initial values
             woodCount = 0;
             moneyCount = 0;
@@ -2697,6 +2822,7 @@
                 backgroundMusic.currentTime = 0;
             }
             debugConsoleLogs = []; // Clear debug logs as well
+            activeTheme = 'dark'; // Reset theme to default dark
         };
 
 
@@ -3954,7 +4080,8 @@
                 currentBackpackId: currentBackpackId, // Save current backpack
                 // New: Music related saves
                 isBackgroundMusicPlaying: isBackgroundMusicPlaying,
-                musicVolume: musicVolume
+                musicVolume: musicVolume,
+                activeTheme: activeTheme // Save active theme
                 // Do not save isSelling, sellingProgress, etc. as they are transient states
             };
             try {
@@ -4020,6 +4147,7 @@
                     // New: Music related loads
                     isBackgroundMusicPlaying = gameState.isBackgroundMusicPlaying !== undefined ? gameState.isBackgroundMusicPlaying : false;
                     musicVolume = gameState.musicVolume !== undefined ? gameState.musicVolume : 0.5;
+                    activeTheme = gameState.activeTheme || 'dark'; // Load active theme, default to 'dark'
 
                     addDebugLog("Game loaded successfully!");
                 } else {
@@ -4060,6 +4188,7 @@
                 // New: Music related resets
                 isBackgroundMusicPlaying = false;
                 musicVolume = 0.5;
+                activeTheme = 'dark'; // Reset theme to default dark
             }
             // Reset any active processes on load to prevent inconsistencies
             isSelling = false;
@@ -4187,11 +4316,47 @@
             }
         };
 
+        // --- Theme Functions ---
+        const applyTheme = (theme) => {
+            const body = document.body;
+            const themeMetaColor = document.getElementById('themeMetaColor');
+
+            // Remove existing theme classes
+            body.classList.remove('theme-dark', 'theme-light');
+
+            // Add new theme class
+            body.classList.add(`theme-${theme}`);
+            activeTheme = theme; // Update active theme state
+
+            // Update theme-color meta tag for PWA
+            if (themeMetaColor) {
+                if (theme === 'dark') {
+                    themeMetaColor.setAttribute('content', '#0c0a09'); // stone-950
+                } else {
+                    themeMetaColor.setAttribute('content', '#f8fafc'); // slate-50
+                }
+            }
+
+            // Save theme preference
+            localStorage.setItem(LOCAL_STORAGE_THEME_KEY, theme);
+            addDebugLog(`Theme set to: ${theme}`);
+        };
+
+        const setTheme = (theme) => {
+            applyTheme(theme);
+            renderApp(); // Re-render the app to apply new theme classes to dynamically generated elements
+            saveGame(); // Save game state including theme
+        };
+
 
         // --- Main Render Function ---
         const renderApp = () => {
             const appRoot = getAppRoot();
             if (!appRoot) return;
+
+            // Apply theme classes to app-root
+            appRoot.classList.remove('theme-dark', 'theme-light');
+            appRoot.classList.add(`theme-${activeTheme}`);
 
             // Clear existing content
             appRoot.innerHTML = '';
@@ -4279,6 +4444,9 @@
 
             // Load game state
             loadGame();
+
+            // Apply loaded theme immediately
+            applyTheme(activeTheme);
 
             // Get background music element
             backgroundMusic = document.getElementById('backgroundMusic');
