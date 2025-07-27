@@ -497,7 +497,7 @@
 
             // Load click sound (now used for hover)
             clickSound = new Tone.Player({
-                url: "sfx/navbuttonclick.mp3",
+                url: "sfx/clicksfx.mp3",
                 onload: () => addDebugLog("Click sound loaded."),
                 onerror: (e) => addDebugLog(`Error loading click sound: ${e}`)
             }).toDestination();
