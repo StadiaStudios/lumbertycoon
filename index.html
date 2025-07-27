@@ -446,7 +446,7 @@
         let questProgress = 0; // 0-100
         let questIntervalRef = null;
         let currentQuestId = null; // ID of the quest being undertaken
-        let currentQuestLumberRequired = 0; // Amount of lumber required for the current quest
+        let currentQuestLumberRequired = 0;
 
         // Backpack state variables
         let ownedBackpacks = ['basic_backpack']; // Start with basic backpack
@@ -474,7 +474,8 @@
         let isBackgroundMusicPlaying = false;
 
         // Tone.js Players for sound effects
-        let clickSound; // This will now be used for hover sounds
+        let hoverSound; // This will now be used for hover sounds
+        let buttonClickSound; // New: For general button clicks
         let purchaseSound;
 
         // Constants for touch-hold functionality
@@ -495,11 +496,18 @@
                 addDebugLog("Tone.js audio context started.");
             }
 
-            // Load click sound (now used for hover)
-            clickSound = new Tone.Player({
+            // Load hover sound
+            hoverSound = new Tone.Player({
+                url: "sfx/navbuttonclick.mp3",
+                onload: () => addDebugLog("Hover sound loaded."),
+                onerror: (e) => addDebugLog(`Error loading hover sound: ${e}`)
+            }).toDestination();
+
+            // Load button click sound
+            buttonClickSound = new Tone.Player({
                 url: "sfx/clicksfx.mp3",
-                onload: () => addDebugLog("Click sound loaded."),
-                onerror: (e) => addDebugLog(`Error loading click sound: ${e}`)
+                onload: () => addDebugLog("Button click sound loaded."),
+                onerror: (e) => addDebugLog(`Error loading button click sound: ${e}`)
             }).toDestination();
 
             // Load purchase sound
@@ -510,27 +518,39 @@
             }).toDestination();
         };
 
-        // Function to play click sound on hover
+        // Function to play hover sound
         const playHoverSound = () => {
-            if (clickSound && clickSound.loaded) {
+            if (hoverSound && hoverSound.loaded) {
                 // Stop if already playing to prevent layering
-                if (clickSound.state === 'started') {
-                    clickSound.stop();
+                if (hoverSound.state === 'started') {
+                    hoverSound.stop();
                 }
-                clickSound.start();
+                hoverSound.start();
             } else {
-                addDebugLog("Click sound not loaded or not initialized for hover.");
+                addDebugLog("Hover sound not loaded or not initialized.");
             }
         };
 
-        // Function to stop click sound on hover out
+        // Function to stop hover sound on hover out
         const stopHoverSound = () => {
-            if (clickSound && clickSound.loaded && clickSound.state === 'started') {
-                clickSound.stop();
+            if (hoverSound && hoverSound.loaded && hoverSound.state === 'started') {
+                hoverSound.stop();
             }
         };
 
-        // Function to play purchase sound (remains on click)
+        // Function to play general button click sound
+        const playButtonClickSound = () => {
+            if (buttonClickSound && buttonClickSound.loaded) {
+                if (buttonClickSound.state === 'started') {
+                    buttonClickSound.stop();
+                }
+                buttonClickSound.start();
+            } else {
+                addDebugLog("Button click sound not loaded or not initialized.");
+            }
+        };
+
+        // Function to play purchase sound
         const playPurchaseSound = () => {
             if (purchaseSound && purchaseSound.loaded) {
                 purchaseSound.start();
@@ -881,6 +901,8 @@
                 // Add hover sound listeners
                 button.addEventListener('mouseover', playHoverSound);
                 button.addEventListener('mouseout', stopHoverSound);
+                // Add click sound listener
+                button.addEventListener('click', playButtonClickSound);
 
                 button.addEventListener('click', () => {
                     // If currently selling, stop the process before navigating
@@ -945,6 +967,9 @@
                     selectedFurnitureToMoveId = null;
                     selectedFurnitureType = null;
                     isFurnitureShopOpen = false; // Close furniture shop when navigating to other main views
+                    
+                    // Play button click sound
+                    playButtonClickSound();
 
                     currentView = viewName;
                     lastLocation = viewName; // Update lastLocation on navigation
@@ -1203,12 +1228,18 @@
                 }
             });
 
-            lumberMillDiv.querySelector('#sellWoodButton').addEventListener('click', sellWood);
+            lumberMillDiv.querySelector('#sellWoodButton').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
+                sellWood();
+            });
 
             // Add event listener for the new upgrade button
             const upgradeButton = lumberMillDiv.querySelector('#upgradeLumberMillButton');
             if (upgradeButton) { // Ensure button exists before adding listener
-                upgradeButton.addEventListener('click', upgradeLumberMill);
+                upgradeButton.addEventListener('click', () => {
+                    playButtonClickSound(); // Play sound on click
+                    upgradeLumberMill();
+                });
             }
 
             // New: Event listeners for Grape Lumber selling (only if upgraded)
@@ -1242,7 +1273,10 @@
                         }
                     }
                 });
-                lumberMillDiv.querySelector('#sellGrapeWoodButton').addEventListener('click', sellGrapeWood);
+                lumberMillDiv.querySelector('#sellGrapeWoodButton').addEventListener('click', () => {
+                    playButtonClickSound(); // Play sound on click
+                    sellGrapeWood();
+                });
             }
 
             return lumberMillDiv;
@@ -1283,12 +1317,18 @@
                     button.textContent = currentAxeId === axe.id ? 'Equipped' : 'Equip';
                     button.classList.add(...(currentAxeId === axe.id ? ['bg-cyan-600', 'cursor-default'] : ['bg-cyan-700', 'hover:bg-cyan-600']));
                     button.disabled = currentAxeId === axe.id;
-                    button.addEventListener('click', () => equipAxe(axe.id));
+                    button.addEventListener('click', () => {
+                        playButtonClickSound(); // Play sound on click
+                        equipAxe(axe.id);
+                    });
                 } else {
                     button.textContent = 'Buy Axe';
                     button.classList.add(...(moneyCount >= axe.moneyCost ? ['bg-rose-600', 'hover:bg-rose-700'] : ['bg-stone-600', 'cursor-not-allowed']));
                     button.disabled = moneyCount < axe.moneyCost;
-                    button.addEventListener('click', () => buyAxe(axe.id));
+                    button.addEventListener('click', () => {
+                        playButtonClickSound(); // Play sound on click
+                        buyAxe(axe.id);
+                    });
                 }
                 axeCard.appendChild(button);
                 axeItemsContainer.appendChild(axeCard);
@@ -1333,12 +1373,18 @@
                     button.textContent = currentCarId === car.id ? 'Equipped' : 'Equip';
                     button.classList.add(...(currentCarId === car.id ? ['bg-cyan-600', 'cursor-default'] : ['bg-cyan-700', 'hover:bg-cyan-600']));
                     button.disabled = currentCarId === car.id;
-                    button.addEventListener('click', () => equipCar(car.id));
+                    button.addEventListener('click', () => {
+                        playButtonClickSound(); // Play sound on click
+                        equipCar(car.id);
+                    });
                 } else {
                     button.textContent = 'Buy Car';
                     button.classList.add(...(moneyCount >= car.moneyCost ? ['bg-cyan-600', 'hover:bg-cyan-700'] : ['bg-stone-600', 'cursor-not-allowed']));
                     button.disabled = moneyCount < car.moneyCost;
-                    button.addEventListener('click', () => buyCar(car.id));
+                    button.addEventListener('click', () => {
+                        playButtonClickSound(); // Play sound on click
+                        buyCar(car.id);
+                    });
                 }
                 carCard.appendChild(button);
                 carItemsContainer.appendChild(carCard);
@@ -1381,12 +1427,18 @@
                     button.textContent = currentBackpackId === backpack.id ? 'Equipped' : 'Equip';
                     button.classList.add(...(currentBackpackId === backpack.id ? ['bg-green-600', 'cursor-default'] : ['bg-green-700', 'hover:bg-green-600']));
                     button.disabled = currentBackpackId === backpack.id;
-                    button.addEventListener('click', () => equipBackpack(backpack.id));
+                    button.addEventListener('click', () => {
+                        playButtonClickSound(); // Play sound on click
+                        equipBackpack(backpack.id);
+                    });
                 } else {
                     button.textContent = 'Buy Backpack';
                     button.classList.add(...(moneyCount >= backpack.moneyCost ? ['bg-green-600', 'hover:bg-green-700'] : ['bg-stone-600', 'cursor-not-allowed']));
                     button.disabled = moneyCount < backpack.moneyCost;
-                    button.addEventListener('click', () => buyBackpack(backpack.id));
+                    button.addEventListener('click', () => {
+                        playButtonClickSound(); // Play sound on click
+                        buyBackpack(backpack.id);
+                    });
                 }
                 backpackCard.appendChild(button);
                 backpackItemsContainer.appendChild(backpackCard);
@@ -1423,18 +1475,21 @@
             `;
 
             shopsDiv.querySelector('#goToAxeShopBtn').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 currentView = 'axeShop';
                 renderApp();
                 saveGame();
             });
 
             shopsDiv.querySelector('#goToCarShopBtn').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 currentView = 'carShop';
                 renderApp();
                 saveGame();
             });
 
             shopsDiv.querySelector('#goToBackpackShopBtn').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 currentView = 'backpackShop';
                 renderApp();
                 saveGame();
@@ -1548,7 +1603,10 @@
                     sellButton.classList.add('bg-stone-600', 'cursor-not-allowed');
                 }
             });
-            buySellShopDiv.querySelector('#sellRustyCanButton').addEventListener('click', () => sellJunk('rustyCan', sellRustyCanAmount));
+            buySellShopDiv.querySelector('#sellRustyCanButton').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
+                sellJunk('rustyCan', sellRustyCanAmount);
+            });
 
             // Event listeners for Garbage sell input and button
             buySellShopDiv.querySelector('#sellGarbageAmount').addEventListener('input', (e) => {
@@ -1566,7 +1624,10 @@
                     sellButton.classList.add('bg-stone-600', 'cursor-not-allowed');
                 }
             });
-            buySellShopDiv.querySelector('#sellGarbageButton').addEventListener('click', () => sellJunk('garbage', sellGarbageAmount));
+            buySellShopDiv.querySelector('#sellGarbageButton').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
+                sellJunk('garbage', sellGarbageAmount);
+            });
 
             // Event listeners for Screws sell input and button
             buySellShopDiv.querySelector('#sellScrewsAmount').addEventListener('input', (e) => {
@@ -1574,7 +1635,7 @@
                 sellScrewsAmount = (isNaN(inputValue) || inputValue < 0) ? 0 : inputValue;
                 buySellShopDiv.querySelector('#sellScrewsMoneyPreview').textContent = sellScrewsAmount * SCREWS_TO_MONEY_RATE;
                 const sellButton = buySellShopDiv.querySelector('#sellScrewsButton');
-                const canSell = screwsCount >= sellScrewsAmount && sellScrewsAmount > 0 && !isSelling && !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk;
+                const canSell = screwsCount >= sellScrewsAmount && sellScrewsAmount > 0 && !isSelling || !isSellingGrape && !isDelivering && !isQuesting && !isSellingJunk;
                 sellButton.disabled = !canSell;
                 if (canSell) {
                     sellButton.classList.remove('bg-stone-600', 'cursor-not-allowed');
@@ -1584,7 +1645,10 @@
                     sellButton.classList.add('bg-stone-600', 'cursor-not-allowed');
                 }
             });
-            buySellShopDiv.querySelector('#sellScrewsButton').addEventListener('click', () => sellJunk('screws', sellScrewsAmount));
+            buySellShopDiv.querySelector('#sellScrewsButton').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
+                sellJunk('screws', sellScrewsAmount);
+            });
 
             return buySellShopDiv;
         };
@@ -1678,7 +1742,10 @@
                     </button>
                 `;
                 const startDeliveryButton = routeCard.querySelector('button');
-                startDeliveryButton.addEventListener('click', () => startDelivery(route.id));
+                startDeliveryButton.addEventListener('click', () => {
+                    playButtonClickSound(); // Play sound on click
+                    startDelivery(route.id);
+                });
                 deliveryRoutesContainer.appendChild(routeCard);
             });
 
@@ -1752,7 +1819,10 @@
                     </button>
                 `;
                 const startQuestButton = questCard.querySelector('button');
-                startQuestButton.addEventListener('click', () => startQuest(quest.id));
+                startQuestButton.addEventListener('click', () => {
+                    playButtonClickSound(); // Play sound on click
+                    startQuest(quest.id);
+                });
                 questItemsContainer.appendChild(questCard);
             });
 
@@ -1808,6 +1878,7 @@
 
             // Event Listeners for sub-view buttons
             homeControlsDiv.querySelector('#furnitureShopBtn').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 isFurnitureShopOpen = !isFurnitureShopOpen; // Toggle visibility
                 homeSubView = isFurnitureShopOpen ? 'furnitureShop' : 'none'; // Set sub-view based on toggle
                 isRearrangingFurniture = false; // Exit rearrange mode when toggling shop
@@ -1818,6 +1889,7 @@
                 saveGame();
             });
             homeControlsDiv.querySelector('#changeHomeBtn').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 homeSubView = 'changeHome';
                 isFurnitureShopOpen = false; // Close shop when changing to other sub-views
                 isRearrangingFurniture = false; // Exit rearrange mode when switching sub-views
@@ -1827,6 +1899,7 @@
                 renderApp();
             });
             homeControlsDiv.querySelector('#buyHousesBtn').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 homeSubView = 'buyHouses';
                 isFurnitureShopOpen = false; // Close shop when changing to other sub-views
                 isRearrangingFurniture = false; // Exit rearrange mode when switching sub-views
@@ -1838,6 +1911,7 @@
 
             // Event listeners for Rearrange and Delete buttons (now in renderHomeView)
             homeControlsDiv.querySelector('#rearrangeFurnitureBtn').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 isRearrangingFurniture = !isRearrangingFurniture;
                 isDeletingFurniture = false; // Exit delete mode
                 selectedFurnitureType = null;
@@ -1848,6 +1922,7 @@
             });
 
             homeControlsDiv.querySelector('#deleteFurnitureBtn').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 isDeletingFurniture = !isDeletingFurniture;
                 isRearrangingFurniture = false; // Exit rearrange mode
                 selectedFurnitureType = null;
@@ -2024,17 +2099,20 @@
 
             // Event listeners for category buttons
             contentDiv.querySelector('#furnitureCategoryBtn').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 currentFurnitureCategory = 'furniture';
                 selectedFurnitureType = null; // Clear selected item when changing category
                 renderApp();
             });
             contentDiv.querySelector('#petsCategoryBtn').addEventListener('click', () => { // Changed from () => to (e) => to be consistent, though e is not used
+                playButtonClickSound(); // Play sound on click
                 currentFurnitureCategory = 'pets';
                 selectedFurnitureType = null; // Clear selected item when changing category
                 renderApp();
             });
             // New: Event listener for Generators category button
             contentDiv.querySelector('#generatorsCategoryBtn').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 currentFurnitureCategory = 'generators';
                 selectedFurnitureType = null; // Clear selected item when changing category
                 renderApp();
@@ -2063,6 +2141,7 @@
                 `;
                 shopItem.addEventListener('click', () => {
                     if (!isRearrangingFurniture && !isDeletingFurniture && !isDisabled) { // Only allow buying if not in rearrange or delete mode
+                        playButtonClickSound(); // Play sound on click
                         buyFurniture(item.id);
                     }
                 });
@@ -2101,7 +2180,10 @@
                             </button>
                         `;
                         const equipButton = houseCard.querySelector('button');
-                        equipButton.addEventListener('click', () => equipHome(house.id));
+                        equipButton.addEventListener('click', () => {
+                            playButtonClickSound(); // Play sound on click
+                            equipHome(house.id);
+                        });
                         ownedHousesContainer.appendChild(houseCard);
                     }
                 });
@@ -2140,7 +2222,10 @@
                         </button>
                     `;
                     const buyButton = houseCard.querySelector('button');
-                    buyButton.addEventListener('click', () => buyHome(house.id));
+                    buyButton.addEventListener('click', () => {
+                        playButtonClickSound(); // Play sound on click
+                        buyHome(house.id);
+                    });
                     housesForSaleContainer.appendChild(houseCard);
                 });
             }
@@ -2185,6 +2270,7 @@
                     teleportButton.textContent = 'Locked (Requires Demonic Pool)';
                 } else {
                     teleportButton.addEventListener('click', () => {
+                        playButtonClickSound(); // Play sound on click
                         currentView = biomeId; // Change the current view to the selected biome
                         lastLocation = biomeId; // Update lastLocation on teleport
                         renderApp(); // Re-render the app to show the new biome
@@ -2317,6 +2403,7 @@
             debugConsoleOutput.scrollTop = debugConsoleOutput.scrollHeight; // Scroll to bottom
 
             runDebugCommandBtn.addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 const command = debugCommandInput.value.trim();
                 if (command) {
                     runDebugCommand(command);
@@ -2352,6 +2439,7 @@
             `;
 
             settingsDiv.querySelector('#goToDebugBtn').addEventListener('click', () => {
+                playButtonClickSound(); // Play sound on click
                 currentView = 'debug';
                 renderApp();
                 saveGame();
@@ -2935,6 +3023,7 @@
             addDebugLog(`Starting delivery of ${currentDeliveryAmount} ${route.lumberType} to ${route.name}.`);
 
             // Removed delivery sound start: if (deliverySound && deliverySound.loaded) { deliverySound.start(); }
+
 
             const intervalTime = 50;
             const totalSteps = effectiveDeliveryTime / intervalTime;
@@ -3617,19 +3706,23 @@
 
             if (chest.type === 'chest' || chest.type === 'vault' || chest.type === 'midas_statue' || chest.type === 'demonic_pool') {
                 modalOverlay.querySelector('#depositMoneyBtn').addEventListener('click', () => {
+                    playButtonClickSound(); // Play sound on click
                     const amount = parseInt(modalOverlay.querySelector('#moneyAmount').value);
                     depositToChest(chestId, 'money', amount);
                 });
                 modalOverlay.querySelector('#withdrawMoneyBtn').addEventListener('click', () => {
+                    playButtonClickSound(); // Play sound on click
                     const amount = parseInt(modalOverlay.querySelector('#moneyAmount').value);
                     withdrawFromChest(chestId, 'money', amount);
                 });
             } else if (chest.type === 'demonic_chest') {
                 modalOverlay.querySelector('#depositSoulLumberBtn').addEventListener('click', () => {
+                    playButtonClickSound(); // Play sound on click
                     const amount = parseInt(modalOverlay.querySelector('#soulLumberAmount').value);
                     depositToChest(chestId, 'soulLumber', amount);
                 });
                 modalOverlay.querySelector('#withdrawSoulLumberBtn').addEventListener('click', () => {
+                    playButtonClickSound(); // Play sound on click
                     const amount = parseInt(modalOverlay.querySelector('#soulLumberAmount').value);
                     withdrawFromChest(chestId, 'soulLumber', amount);
                 });
