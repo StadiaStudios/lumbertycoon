@@ -1,0 +1,59 @@
+DLCs
+- Demonics
+- Quest Expansion
+- Riverhall City
+
+V1.11.4- - -Complete Version | Riverhall City
+Adds New City DLC: Riverhall City Expansion, Riverhall Collectibles Include:
+Widow Lumber, Widow Cash, Widow Trees. RiverHall City. BG Music. Widow Pelt.
+Widow Stones. and Widow Dust. Axes. Buy And Sell Shop. Widow Quests. RiverHall Home.
+Furniture Shop. Place Objects, Remove Objects, Stretch objects. Riverhall.js is now Seperate to take less code space.
+
+
+V1.11.4- - -This was the live version 
+Fixes Hover, And Click SFX Bugs. Adds new theme. Adds new furniture. Adds new Vehicle "Bat Hovercraft".
+Adds teleport option to navbar. 
+
+V1.10.3- - -Quest Expansion
+Tweaks Game Prices. Adds Quests. Replaces Furniture Items: Demonic Sofa. Demonic Chair. Outdoor Pool. Demonic Chest. & Demonic Plant. Updates Shops Page. Adds 3 New collectibles: "Rusty Can" "Garbage" "Screws" When completing quests. Adds a new shop "Buy & Sell" Where you can sell items. Adds BackPacks Along with Backpack store. Inventory weight now implemented.
+
+V1.9.3- - -
+New Cursors when playing on PC.
+
+V1.8.3- - -
+Moves Debug to Settings Page. Settings displays Version. Fixes mobile users can open chests.
+
+V1.7.2- - -
+Shops are now moved to a Shops section to save navbar space. Custom Loading screen.
+Background Music. Cash Spend, & Button click sfx.
+
+V1.6.2- - -More Complete app version
+Soul Lumber takes longer. Soul Trees take longer to cut. Vehicles and Axes have been tweaked.
+Vampire Forest is now "Soul Forest". Adds 5 new commands to the debug console. Also makes
+console canvas bigger.
+
+V1.5.2- - -Debug Console
+Debug Page, Commands list:
+- 1. debugresetprog | Resets all progress
+- 2. debugcheat(cheatname) | Activate cheats
+- 3. debugremove 100 | Remove Cash can change custom amount
+- 4. debugchangelog | Displays Changelog, Only works in browser version
+- 5. debugdownload | Takes you to github page to Download/Update
+Fixes Current Axe, & Current Car Display Bugs.
+
+V1.4.2- - -
+Fixes cant scroll on Smaller screens in Biomes. Fixes Lumbermill All Lumber Mill Related Problems.
+
+V1.3.1- - -More Complete Version for the Demonics DLC.
+Moves Lumber Counts to a new Inventory implement. ATVs Now Deliver 20% Faster.
+Fixes Insanely high price for Demonic Mo-Bile. Fixed Mobile buttons Layout. Fixes
+Demonic Table size. Fixes "Vampire Forest" to "Demonic Forest". Fixes Double Tap Zoom
+on IPhones. Adds Nightcrawler car to shop which can also deliver soul lumber. 
+Demonic Axe is now 850 Cash.
+
+V1.2.0- - -Demonics
+Demonics DLC Includes Vampire Furniture in the shop.
+Includes Vampire Forest. Soul Lumber. And Delivery places.
+Adds Cars Dealership, And a Special Demonic Mo-Bile used for vampire deliveries.
+Adds new Demonic Axe.New Demonic Home. Demonic Furniture Demonic Chest
+where people can store Soul Lumber.

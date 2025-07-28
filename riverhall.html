@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumber Tycoon | RiverHall</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/x-icon" href="assets/appicon.png">
+
+    <style>
+        /* Base styles for the new darker gradient theme */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column; /* Changed to column to stack elements vertically */
+            justify-content: flex-start; /* Changed to flex-start to allow content to flow from top */
+            align-items: center;
+            min-height: 100vh; /* Keep min-height to ensure content pushes body height */
+            /* Darker city-like gradient background */
+            background: linear-gradient(to bottom right, #2a2a2a, #1a1a1a, #0d0d0d);
+            color: #e2e8f0; /* Tailwind slate-200 for text */
+            /* Prevent double-tap zoom on mobile */
+            touch-action: manipulation;
+            cursor: url("riverhall/riverhall1.ico"), default;
+            /* Custom scrollbar for the entire body */
+            overflow-y: auto; /* Enable scrolling for the body */
+        }
+        /* Custom scrollbar styling for the whole page */
+        body::-webkit-scrollbar {
+            width: 12px; /* Width of the scrollbar */
+        }
+        body::-webkit-scrollbar-track {
+            background: #1a1a1a; /* Dark background for the track */
+            border-radius: 10px;
+        }
+        body::-webkit-scrollbar-thumb {
+            background: #4a5568; /* Gray-700 for the thumb */
+            border-radius: 10px;
+            border: 3px solid #1a1a1a; /* Padding around the thumb */
+        }
+        body::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; /* Darker gray on hover */
+        }
+
+        .container {
+            background-color: #1c1c1c; /* Darker background for container */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 44px 6px -2px rgba(0, 0, 0, 0.25); /* Stronger, darker shadow */
+            padding: 2rem; /* p-8 */
+            text-align: center;
+            width: 90%;
+            max-width: 1200px; /* Increased max-width for a bigger home page */
+            margin-bottom: 1rem; /* Add some margin for the go back button */
+            z-index: 10; /* Ensure it's above loading/start screens */
+            position: relative; /* For z-index to work */
+            margin-top: 2rem; /* Added margin-top for scrollability */
+        }
+        .currency-icon {
+            width: 24px; /* w-6 */
+            height: 24px; /* h-6 */
+            display: inline-block;
+            margin-right: 8px; /* mr-2 */
+            vertical-align: middle; /* Align with text */
+        }
+        button:hover {
+            cursor: url("riverhall/riverhall1.ico"), pointer;
+        }
+
+        /* Reusing existing progress bar styles from index.html */
+        .progress-bar-container {
+            position: absolute;
+            bottom: 10px; /* Adjust as needed for the fountain image */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 10px;
+            background-color: rgba(0,0,0,0.8);
+            border-radius: 5px;
+            overflow: hidden;
+            z-index: 20;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #22c55e; /* Default green */
+            width: 0%;
+            border-radius: 55px;
+            transition: width 0.05s linear;
+        }
+        .progress-bar-yellow { /* Specific for money collection */
+            background-color: #f59e0b; /* Tailwind yellow-500 */
+        }
+        /* New: Styles for Widow Trees */
+        .widow-trees-biome-container {
+            width: 95%; /* Adjusted width */
+            max-width: 1600px; /* Increased max-width for a bigger canvas */
+            height: 90vh; /* Adjusted height for responsiveness */
+            background-color: #1a1a1a;
+            border-radius: 0.75rem;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.4);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2rem;
+            position: relative;
+            /* Added for scrolling */
+            overflow-y: auto; 
+            background: linear-gradient(to bottom, #1a1a1a, #0a0a0a);
+        }
+        /* Scrollbar styling for webkit browsers */
+        .widow-trees-biome-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .widow-trees-biome-container::-webkit-scrollbar-track {
+            background: #2a2a2a;
+            border-radius: 10px;
+        }
+        .widow-trees-biome-container::-webkit-scrollbar-thumb {
+            background: #ef4444; /* red-500 */
+            border-radius: 10px;
+        }
+        .widow-trees-biome-container::-webkit-scrollbar-thumb:hover {
+            background: #dc2626; /* darker red */
+        }
+
+        .widow-tree-image {
+            width: 80px; /* Match tree size from index.html */
+            height: 120px; /* Match tree size from index.html */
+            object-fit: contain;
+            cursor: pointer;
+            transition: transform 0.1s ease-out;
+            position: absolute; /* Allow positioning within the container */
+        }
+        .widow-tree-image:hover {
+            transform: scale(1.05);
+        }
+        .widow-tree-image.cursor-not-allowed {
+            cursor: not-allowed;
+        }
+        .animate-shake {
+            animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            perspective: 1000px;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .progress-bar-red {
+            background-color: #ef4444; /* A shade of red (red-500) */
+        }
+
+        /* Navigation buttons for biomes within New City */
+        .biome-nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem; /* Reduced gap */
+            margin-bottom: 1.5rem;
+            width: 100%;
+            max-width: 700px; /* Increased max-width to accommodate more buttons */
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        }
+        .biome-nav-button {
+            padding: 0.75rem 1rem; /* Adjusted padding */
+            border-radius: 9999px;
+            font-weight: 600;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease-in-out;
+            background-color: #4a5568; /* Tailwind gray-700 */
+            flex-grow: 1; /* Allow buttons to grow */
+            min-width: 100px; /* Minimum width for buttons to prevent them from becoming too small */
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+        .biome-nav-button:hover {
+            background-color: #2d3748; /* Tailwind gray-800 */
+        }
+        .biome-nav-button.active {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+            background-color: #ef4444; /* Tailwind red-500 */
+        }
+        .biome-nav-button:not(.active):hover {
+            box-shadow: 0 6px 10px rgba(0,0,0,0.35);
+            transform: translateY(-1px);
+        }
+
+        /* New: Styles for count displays */
+        .count-display {
+            background-color: #000;
+            border: 1px solid #ef4444; /* red-500 */
+            border-radius: 0.5rem; /* rounded */
+            padding: 0.5rem 1rem; /* py-2 px-4 */
+            display: flex; /* Use flex to align icon and text */
+            align-items: center; /* Center items vertically */
+            justify-content: center; /* Center content horizontally */
+            width: fit-content; /* Adjust width to content */
+        }
+
+        /* Styles for the Lumbermill view and Shop sell buttons (red) */
+        .sell-button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: white;
+            background-color: #ef4444; /* Red */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease-in-out;
+        }
+        .sell-button:hover {
+            background-color: #dc2626; /* Darker red */
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px rgba(0,0,0,0.35);
+        }
+        .sell-button:disabled {
+            background-color: #6b7280; /* Gray */
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Styles for shop buy buttons (blue) */
+        .buy-button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: white;
+            background-color: #3b82f6; /* Blue */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease-in-out;
+        }
+        .buy-button:hover {
+            background-color: #2563eb; /* Darker blue */
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px rgba(0,0,0,0.35);
+        }
+        .buy-button:disabled {
+            background-color: #6b7280; /* Gray */
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+        .equip-button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: white;
+            background-color: #22c55e; /* Green */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease-in-out;
+        }
+        .equip-button:hover {
+            background-color: #16a34a; /* Darker green */
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px rgba(0,0,0,0.35);
+        }
+        .equip-button:disabled {
+            background-color: #6b7280; /* Gray */
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+
+        /* Styles for the Lumbermill view and Shop view (container remains the same) */
+        .lumbermill-container {
+            width: 95%; /* Adjusted width */
+            max-width: 1600px; /* Increased max-width for a bigger canvas */
+            height: 90vh; /* Adjusted height for responsiveness */
+            background-color: #1a1a1a;
+            border-radius: 0.75rem;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.4);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2rem;
+            position: relative;
+            /* Added for scrolling */
+            overflow-y: auto; 
+            background: linear-gradient(to bottom, #1a1a1a, #0a0a0a);
+        }
+        /* Custom scrollbar styling for .lumbermill-container */
+        .lumbermill-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .lumbermill-container::-webkit-scrollbar-track {
+            background: #2a2a2a;
+            border-radius: 10px;
+        }
+        .lumbermill-container::-webkit-scrollbar-thumb {
+            background: #22c55e; /* Green */
+            border-radius: 10px;
+        }
+        .lumbermill-container::-webkit-scrollbar-thumb:hover {
+            background: #16a34a; /* Darker green */
+        }
+
+        .lumbermill-progress-bar {
+            background-color: #f59e0b; /* Yellow */
+        }
+
+        /* Styles for the Teleport Modal */
+        .teleport-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50; /* Above all other content */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .teleport-modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .teleport-modal-content {
+            background-color: #1c1c1c;
+            border-radius: 0.75rem;
+            padding: 2rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            position: relative;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease-in-out;
+        }
+        .teleport-modal-overlay.show .teleport-modal-content {
+            transform: translateY(0);
+        }
+        .teleport-modal-button {
+            display: block;
+            width: 100%;
+            padding: 0.75rem 1.5rem;
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: white;
+            background-color: #4a5568; /* Tailwind gray-700 */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease-in-out;
+            text-decoration: none; /* For anchor tags */
+            display: flex; /* For centering content */
+            justify-content: center;
+            align-items: center;
+        }
+        .teleport-modal-button:hover {
+            background-color: #2d3748; /* Tailwind gray-800 */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0,0,0,0.35);
+        }
+        .teleport-modal-close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: color 0.2s ease-in-out;
+        }
+        .teleport-modal-close-button:hover {
+            color: #ef4444; /* red-500 */
+        }
+
+        /* New: Loading Screen Styles */
+        .loading-screen {
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('riverhall/loading-screen/riverhall.png'); /* Replace with your image */
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column; /* Added to stack icon and spinner */
+            justify-content: center;
+            align-items: center;
+            z-index: 100; /* Highest z-index */
+            transition: opacity 0.5s ease-out;
+        }
+        .loading-screen .app-icon {
+            width: 100px; /* Adjust size as needed */
+            height: 100px;
+            margin-bottom: 20px; /* Space between icon and spinner */
+            border-radius: 1rem; /* Rounded corners for the icon */
+            box-shadow: 0 0 15px rgba(0,0,0,0.5); /* Subtle shadow */
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #3b82f6; /* Tailwind blue-500 */
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* New: Start Screen Styles */
+        .start-screen {
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('riverhall/loading-screen/riverhall.png'); /* Replace with your image */
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 90; /* Below loading screen, above game content */
+            transition: opacity 0.5s ease-out;
+        }
+        .start-screen h1 {
+            font-size: 3rem;
+            color: #a78bfa; /* Tailwind violet-400 */
+            margin-bottom: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .start-button {
+            padding: 1rem 2.5rem;
+            background: linear-gradient(to right, #6366f1, #8b5cf6); /* Tailwind indigo-500 to violet-500 */
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 9999px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.25);
+            cursor: pointer;
+            transition: all 0.3s ease-in-out;
+            animation: pulse 2s infinite;
+        }
+        .start-button:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 20px -5px rgba(0, 0, 0, 0.7);
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Utility class to hide elements */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Quest Completed Modal Styles */
+        .quest-completed-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 60; /* Higher than teleport modal */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .quest-completed-modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .quest-completed-modal-content {
+            background-color: #1c1c1c;
+            border-radius: 0.75rem;
+            padding: 2rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.8);
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease-in-out;
+            border: 2px solid #22c55e; /* Green border for success */
+        }
+        .quest-completed-modal-overlay.show .quest-completed-modal-content {
+            transform: translateY(0);
+        }
+        .quest-completed-modal-content h3 {
+            color: #22c55e; /* Green for success */
+        }
+        .quest-completed-modal-content ul {
+            list-style: none;
+            padding: 0;
+            margin-top: 1rem;
+        }
+        .quest-completed-modal-content li {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: #e2e8f0;
+        }
+        /* House Canvas Styles */
+        #houseCanvas {
+            border: 2px solid #4a5568; /* Gray border */
+            background-color: #2d3748; /* Darker gray background */
+            border-radius: 0.5rem;
+            touch-action: none; /* Prevent scrolling/zooming on canvas touch */
+        }
+        /* Style for selected block/furniture buttons in House view */
+        .house-block-button.active, .house-furniture-button.active {
+            background-color: #3b82f6; /* Blue */
+            box-shadow: 0 6px 10px rgba(0,0,0,0.35);
+            transform: translateY(-1px);
+        }
+        .house-block-button, .house-furniture-button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: white;
+            background-color: #4a5568; /* Tailwind gray-700 */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease-in-out;
+        }
+        .house-block-button:hover, .house-furniture-button:hover {
+            background-color: #2d3748; /* Tailwind gray-800 */
+        }
+        /* Custom scrollbar for the dynamic content area */
+        #dynamicContentArea::-webkit-scrollbar {
+            width: 8px;
+        }
+        #dynamicContentArea::-webkit-scrollbar-track {
+            background: #2a2a2a;
+            border-radius: 10px;
+        }
+        #dynamicContentArea::-webkit-scrollbar-thumb {
+            background: #3b82f6; /* Blue */
+            border-radius: 10px;
+        }
+        #dynamicContentArea::-webkit-scrollbar-thumb:hover {
+            background: #2563eb; /* Darker blue */
+        }
+
+        /* Styles for the new Edit button */
+        #editButtonContainer {
+            position: relative;
+            display: inline-block; /* To allow tooltip positioning */
+        }
+
+        #editButton {
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        #editButton:hover {
+            transform: scale(1.05);
+        }
+
+        #editButton img {
+            width: 48px; /* Adjust size as needed */
+            height: 48px;
+            border-radius: 0.5rem; /* Slightly rounded corners for the image */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        #editButtonTooltip {
+            position: absolute;
+            top: -30px; /* Position above the button */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem; /* text-sm */
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+            pointer-events: none; /* Allow clicks to pass through to the button */
+            z-index: 10; /* Ensure tooltip is above other elements */
+        }
+
+        #editButtonContainer:hover #editButtonTooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Initial state for building mode buttons */
+        .building-mode-buttons.hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <img src="riverhall/riverhall-city-icon.png" alt="App Icon" class="app-icon"/>
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="startScreen" class="start-screen hidden">
+        <h1>Successfully Teleported</h1>
+        <p>Welcome to RiverHall, This city is currently in development meaning its expected to encounter bugs. Each City will have all new options. More Furniture and updates coming soon.</p><br>
+        <button id="startButton" class="start-button">START GAME</button>
+    </div>
+
+    <!-- Background Music -->
+    <audio id="backgroundMusic" loop preload="auto">
+        <source src="riverhall/sfx/bgmusic.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <div class="container hidden" id="mainGameContainer">
+        <h1 id="cityName" class="text-4xl font-bold text-blue-400 mb-6">RiverHall</h1>
+        <p class="text-xl text-stone-300 mb-8">Explore the bustling streets and new opportunities. (This city is currently in its early stages, More Options furniture and Updates await!)</p>
+        
+        <!-- Navbar for biome navigation -->
+        <nav class="biome-nav-buttons mb-8">
+            <button id="widowTreesNavButton" class="biome-nav-button active">Trees</button>
+            <button id="lumbermillNavButton" class="biome-nav-button">Lumbermill</button>
+            <button id="shopNavButton" class="biome-nav-button">Shop</button> <!-- New: Shop button -->
+            <button id="questsNavButton" class="biome-nav-button">Quests</button> <!-- New: Quests button -->
+            <button id="houseNavButton" class="biome-nav-button">House</button> <!-- New: House button -->
+            <button id="teleportNavButton" class="biome-nav-button">Teleport</button>
+        </nav>
+
+        <!-- Inventory Displays side-by-side -->
+        <div class="flex justify-center gap-4 mb-8 flex-wrap">
+            <!-- Display for Widow Cash -->
+            <p class="count-display">
+                <img src="riverhall/widow-cash.png" alt="Widow Cash Icon" class="inline-block w-6 h-6 mr-2 vertical-align-middle" onerror="this.onerror=null;this.src='https://placehold.co/24x24/FFD700/000000?text=Cash';"/>
+                Widow Cash: <span id="moneyDisplay">0</span>
+            </p>
+            
+            <!-- Display for Widow Lumber -->
+            <p class="count-display">
+                <img src="riverhall/widow-lumber.png" alt="Widow Lumber Icon" class="inline-block w-6 h-6 mr-2 vertical-align-middle" onerror="this.onerror=null;this.src='https://placehold.co/24x24/8B4513/FFFFFF?text=Lumber';"/>
+                Widow Lumber: <span id="widowLumberDisplay">0</span>
+            </p>
+
+            <!-- New: Display for Widow Dust -->
+            <p id="widowDustDisplayContainer" class="count-display hidden">
+                <img src="riverhall/items/widow-dust.png" alt="Widow Dust Icon" class="inline-block w-6 h-6 mr-2 vertical-align-middle" onerror="this.onerror=null;this.src='https://placehold.co/24x24/808080/FFFFFF?text=Dust';"/>
+                Widow Dust: <span id="widowDustDisplay">0</span>
+            </p>
+
+            <!-- New: Display for Widow Stones -->
+            <p id="widowStonesDisplayContainer" class="count-display hidden">
+                <img src="riverhall/items/widow-stone.png" alt="Widow Stones Icon" class="inline-block w-6 h-6 mr-2 vertical-align-middle" onerror="this.onerror=null;this.src='https://placehold.co/24x24/A9A9A9/000000?text=Stone';"/>
+                Widow Stones: <span id="widowStonesDisplay">0</span>
+            </p>
+
+            <!-- New: Display for Widow Pelt -->
+            <p id="widowPeltDisplayContainer" class="count-display hidden">
+                <img src="riverhall/items/widow-pelt.png" alt="Widow Pelt Icon" class="inline-block w-6 h-6 mr-2 vertical-align-middle" onerror="this.onerror=null;this.src='https://placehold.co/24x24/8B4513/FFFFFF?text=Pelt';"/>
+                Widow Pelt: <span id="widowPeltDisplay">0</span>
+            </p>
+
+            <!-- New: Display for Current Axe -->
+            <p id="currentAxeDisplayContainer" class="count-display">
+                <img id="currentAxeIcon" src="riverhall/axes/basic-axe.png" alt="Current Axe Icon" class="inline-block w-6 h-6 mr-2 vertical-align-middle"/>
+                Current Axe: <span id="currentAxeName">Basic Axe</span>
+            </p>
+        </div>
+
+        <!-- Dynamic Content Area -->
+        <div id="dynamicContentArea" class="w-full flex justify-center overflow-y-auto">
+            <!-- Biome content will be rendered here -->
+        </div>
+    </div>
+
+    <!-- Teleport Modal -->
+    <div id="teleportModal" class="teleport-modal-overlay">
+        <div class="teleport-modal-content">
+            <button id="closeTeleportModal" class="teleport-modal-close-button">&times;</button>
+            <h3 class="text-2xl font-bold text-blue-300 mb-6">Teleport to Another City</h3>
+            <a href="index.html" class="teleport-modal-button">LumberCity</a>
+            <a href="riverhall.html" class="teleport-modal-button">RiverHall</a>
+        </div>
+    </div>
+
+    <!-- Quest Completed Modal -->
+    <div id="questCompletedModal" class="quest-completed-modal-overlay">
+        <div class="quest-completed-modal-content">
+            <h3 class="text-3xl font-bold mb-4">Quest Completed!</h3>
+            <p class="text-lg text-stone-300 mb-4">You earned:</p>
+            <ul id="questRewardsList" class="text-left mx-auto max-w-xs">
+                <!-- Rewards will be dynamically inserted here -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- Link to external JavaScript file -->
+    <script src="javascript/riverhall.js" defer></script>
+</body>
+</html>
