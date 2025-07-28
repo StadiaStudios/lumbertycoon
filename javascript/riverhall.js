@@ -151,8 +151,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const startButton = document.getElementById('startButton');
     const mainGameContainer = document.getElementById('mainGameContainer');
     const backgroundMusic = document.getElementById('backgroundMusic');
+    const hoverSound = document.getElementById('hoverSound'); // Get hover sound element
+    const clickSound = document.getElementById('clickSound'); // Get click sound element
     const questCompletedModal = document.getElementById('questCompletedModal');
     const questRewardsList = document.getElementById('questRewardsList');
+
+    // Function to play sound effects
+    const playSound = (audioElement) => {
+        if (audioElement) {
+            audioElement.currentTime = 0; // Rewind to start
+            audioElement.play().catch(error => {
+                console.warn("Sound playback prevented:", error);
+            });
+        }
+    };
 
     // Function to get URL parameters (kept for potential future use, but not used for money/lumber)
     const getUrlParameter = (name) => {
@@ -457,10 +469,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Only disable clicking if chopping is in progress or selling is in progress
             if (!isChoppingWidowLumber && !isSellingAnyItem) {
-                treeElement.addEventListener('click', () => chopWidowLumber(treeData.id)); 
+                treeElement.addEventListener('click', () => {
+                    playSound(clickSound); // Play click sound
+                    chopWidowLumber(treeData.id);
+                }); 
             } else {
                 treeElement.classList.add('cursor-not-allowed');
             }
+
+            // Add hover sound to trees
+            treeElement.addEventListener('mouseover', () => playSound(hoverSound));
 
             const progressBarContainer = document.createElement('div');
             progressBarContainer.className = "progress-bar-container";
@@ -628,7 +646,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add event listener for the lumber sell button
         const sellButton = lumbermillDiv.querySelector(`#sell${toPascalCase('widowLumber')}Button`);
         if (sellButton) {
-            sellButton.addEventListener('click', () => sellItem('widowLumber'));
+            sellButton.addEventListener('click', () => {
+                playSound(clickSound); // Play click sound
+                sellItem('widowLumber');
+            });
+            sellButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
         }
 
         return lumbermillDiv;
@@ -658,6 +680,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const shopFurnitureButton = shopDiv.querySelector('#shopFurnitureButton'); // New: Furniture button
         const shopSellButton = shopDiv.querySelector('#shopSellButton');
         const shopCategoryContent = shopDiv.querySelector('#shopCategoryContent');
+
+        // Add hover sounds to these category buttons
+        shopAxesButton.addEventListener('mouseover', () => playSound(hoverSound));
+        shopFurnitureButton.addEventListener('mouseover', () => playSound(hoverSound));
+        shopSellButton.addEventListener('mouseover', () => playSound(hoverSound));
 
         let currentShopCategory = 'axes'; // Default shop category
         let currentFurnitureSubCategory = 'all'; // Default furniture sub-category
@@ -747,6 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add event listeners for axe buttons (buy/equip)
             shopCategoryContent.querySelectorAll('button').forEach(button => {
                 button.addEventListener('click', (event) => {
+                    playSound(clickSound); // Play click sound
                     const axeIndex = parseInt(event.target.dataset.axeIndex);
                     const selectedAxe = axes[axeIndex];
                     const isOwned = currentInventory.ownedAxes.includes(axeIndex);
@@ -787,6 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateDisplays();
                     renderApp(); // Re-render to update shop and tree views
                 });
+                button.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
             });
         };
 
@@ -861,13 +890,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add event listeners for sub-category buttons
             shopCategoryContent.querySelectorAll('.biome-nav-button').forEach(button => {
                 button.addEventListener('click', (event) => {
+                    playSound(clickSound); // Play click sound
                     currentFurnitureSubCategory = event.target.dataset.category;
                     renderFurnitureSection(); // Re-render furniture section with filtered items
                 });
+                button.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
             });
 
             shopCategoryContent.querySelectorAll('button[data-item-id]').forEach(button => {
                 button.addEventListener('click', (event) => {
+                    playSound(clickSound); // Play click sound
                     const itemId = event.target.closest('button').dataset.itemId;
                     const selectedItem = furnitureItems.find(f => f.id === itemId);
 
@@ -889,6 +921,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 });
+                button.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
             });
         };
 
@@ -947,7 +980,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const buttonId = `sell${toPascalCase(key)}ShopButton`;
                 const sellButton = shopCategoryContent.querySelector(`#${buttonId}`);
                 if (sellButton) {
-                    sellButton.addEventListener('click', () => sellItem(key));
+                    sellButton.addEventListener('click', () => {
+                        playSound(clickSound); // Play click sound
+                        sellItem(key);
+                    });
+                    sellButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
                 }
             });
 
@@ -957,7 +994,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const buttonId = `sellAxe${axeIndex}Button`;
                 const sellButton = shopCategoryContent.querySelector(`#${buttonId}`);
                 if (sellButton) {
-                    sellButton.addEventListener('click', () => sellAxe(axeIndex));
+                    sellButton.addEventListener('click', () => {
+                        playSound(clickSound); // Play click sound
+                        sellAxe(axeIndex);
+                    });
+                    sellButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
                 }
             });
         };
@@ -965,9 +1006,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Default to Axes section when shop is opened
         renderAxesSection();
 
-        shopAxesButton.addEventListener('click', renderAxesSection);
-        shopFurnitureButton.addEventListener('click', renderFurnitureSection); // New: Furniture button listener
-        shopSellButton.addEventListener('click', renderSellSection);
+        shopAxesButton.addEventListener('click', () => {
+            playSound(clickSound); // Play click sound
+            renderAxesSection();
+        });
+        shopFurnitureButton.addEventListener('click', () => {
+            playSound(clickSound); // Play click sound
+            renderFurnitureSection();
+        }); // New: Furniture button listener
+        shopSellButton.addEventListener('click', () => {
+            playSound(clickSound); // Play click sound
+            renderSellSection();
+        });
 
         return shopDiv;
     };
@@ -1033,9 +1083,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentActiveQuest) {
             questsDiv.querySelectorAll('button[data-quest-id]').forEach(button => {
                 button.addEventListener('click', (event) => {
+                    playSound(clickSound); // Play click sound
                     const questId = event.target.dataset.questId;
                     startQuest(questId);
                 });
+                button.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
             });
         }
 
@@ -1180,6 +1232,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const buyHouseButton = houseDiv.querySelector('#buyHouseButton');
             if (buyHouseButton) {
                 buyHouseButton.addEventListener('click', () => {
+                    playSound(clickSound); // Play click sound
                     if (currentInventory.widowCash >= HOUSE_COST) {
                         currentInventory.widowCash -= HOUSE_COST;
                         // Initialize a new empty grid for the house and empty furniture array
@@ -1193,6 +1246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         showHouseMessage('Not enough Widow Cash to buy a house!', 'red');
                     }
                 });
+                buyHouseButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
             }
         } else {
             // Setup canvas and building tools if house is owned
@@ -1217,6 +1271,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Event listeners for the new Edit button
             if (editButton) {
                 editButton.addEventListener('click', () => {
+                    playSound(clickSound); // Play click sound
                     isBuildingModeButtonsVisible = !isBuildingModeButtonsVisible;
                     if (isBuildingModeButtonsVisible) {
                         buildingModeButtonsContainer.classList.remove('hidden');
@@ -1230,7 +1285,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                editButton.addEventListener('mouseenter', () => {
+                editButton.addEventListener('mouseover', () => {
+                    playSound(hoverSound); // Play hover sound
                     editButtonTooltip.classList.remove('hidden');
                 });
 
@@ -1277,8 +1333,10 @@ document.addEventListener('DOMContentLoaded', () => {
             closeChestModalButton = document.getElementById('closeChestModal');
 
             closeChestModalButton.addEventListener('click', () => {
+                playSound(clickSound); // Play click sound
                 chestModal.classList.remove('show');
             });
+            closeChestModalButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
             const drawHouseGrid = () => {
                 houseCtx.clearRect(0, 0, houseCanvas.width, houseCanvas.height);
@@ -1388,7 +1446,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p class="text-sm text-white">${axe.name}</p>
                             <p class="text-xs text-stone-400">(In Chest)</p>
                         `;
-                        axeElement.addEventListener('click', () => takeAxeFromChest(axeIndex));
+                        axeElement.addEventListener('click', () => {
+                            playSound(clickSound); // Play click sound
+                            takeAxeFromChest(axeIndex);
+                        });
+                        axeElement.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
                         chestAxeList.appendChild(axeElement);
                     });
                 } else {
@@ -1418,7 +1480,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p class="text-sm text-white">${axe.name}</p>
                             <p class="text-xs text-stone-400">(In Inventory)</p>
                         `;
-                        axeElement.addEventListener('click', () => putAxeInChest(axeIndex));
+                        axeElement.addEventListener('click', () => {
+                            playSound(clickSound); // Play click sound
+                            putAxeInChest(axeIndex);
+                        });
+                        axeElement.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
                         chestAxeList.appendChild(axeElement);
                     });
                 } else if (chestAxes.length === 0) {
@@ -1554,9 +1620,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         event.preventDefault(); // Prevent context menu on right-click
                         if (event.type === 'touchstart') {
                             longPressTimer = setTimeout(() => {
+                                playSound(clickSound); // Play click sound
                                 openChestModal(clickedFurniture);
                             }, LONG_PRESS_THRESHOLD);
                         } else {
+                            playSound(clickSound); // Play click sound
                             openChestModal(clickedFurniture);
                         }
                         return; // Stop further processing for chest interaction
@@ -1612,6 +1680,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } else if (currentHouseAction === 'remove') {
                     // Initial removal on mouse down
+                    playSound(clickSound); // Play click sound on removal
                     removeObjectAtGrid(gridY, gridX);
                     isRemoving = true;
                     // Start turbo delete interval
@@ -1783,19 +1852,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (selectWallBlockButton) {
                     selectWallBlockButton.addEventListener('click', () => {
+                        playSound(clickSound); // Play click sound
                         currentBuildingBlockType = 'wall';
                         selectWallBlockButton.classList.add('active');
                         selectGrassBlockButton.classList.remove('active');
                         showHouseMessage('Selected: Wall Block', 'blue');
                     });
+                    selectWallBlockButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
                 }
                 if (selectGrassBlockButton) {
                     selectGrassBlockButton.addEventListener('click', () => {
+                        playSound(clickSound); // Play click sound
                         currentBuildingBlockType = 'grass';
                         selectGrassBlockButton.classList.add('active');
                         selectWallBlockButton.classList.remove('active');
                         showHouseMessage('Selected: Grass Block', 'green');
                     });
+                    selectGrassBlockButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
                 }
             };
 
@@ -1824,6 +1897,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 buildingToolsDiv.querySelectorAll('.house-furniture-button').forEach(button => {
                     button.addEventListener('click', (event) => {
+                        playSound(clickSound); // Play click sound
                         const itemId = event.target.closest('button').dataset.itemId;
                         selectedFurnitureItem = furnitureItems.find(f => f.id === itemId);
                         // Remove active class from all furniture buttons
@@ -1832,6 +1906,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         event.target.closest('button').classList.add('active');
                         showHouseMessage(`Selected: ${selectedFurnitureItem.name}`, 'blue');
                     });
+                    button.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
                 });
             };
 
@@ -1851,6 +1926,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Event listeners for mode switching buttons
             selectBlockModeButton.addEventListener('click', () => {
+                playSound(clickSound); // Play click sound
                 currentHouseAction = 'blockPlace';
                 selectedFurnitureItem = null; // Clear selected furniture
                 currentBuildingBlockType = 'wall'; // Reset to default block type
@@ -1860,8 +1936,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderBlockSelection();
                 showHouseMessage('Switched to Block Placement Mode', 'blue');
             });
+            selectBlockModeButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
             selectFurnitureModeButton.addEventListener('click', () => {
+                playSound(clickSound); // Play click sound
                 currentHouseAction = 'furniturePlace';
                 currentBuildingBlockType = null; // Clear selected block
                 selectedFurnitureItem = null; // Clear previously selected furniture to avoid accidental placement
@@ -1871,8 +1949,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderFurnitureSelection();
                 showHouseMessage('Switched to Furniture Placement Mode', 'blue');
             });
+            selectFurnitureModeButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
             removeObjectButton.addEventListener('click', () => {
+                playSound(clickSound); // Play click sound
                 currentHouseAction = 'remove';
                 selectedFurnitureItem = null; // Clear selected furniture
                 currentBuildingBlockType = null; // Clear selected block
@@ -1882,6 +1962,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 buildingToolsDiv.innerHTML = `<p class="text-stone-400">Click on an object in your house to remove it.</p>`;
                 showHouseMessage('Switched to Remove Object Mode', 'red');
             });
+            removeObjectButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
 
             // Initial draw
@@ -1944,6 +2025,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Event listeners for navigation buttons
     widowTreesNavButton.addEventListener('click', () => {
+        playSound(clickSound); // Play click sound
         currentView = 'widowTrees';
         // Clear any ongoing activities if switching views
         if (choppingIntervalRef) clearInterval(choppingIntervalRef);
@@ -1953,8 +2035,10 @@ document.addEventListener('DOMContentLoaded', () => {
         teleportModal.classList.remove('show'); // Hide modal if open
         renderApp();
     });
+    widowTreesNavButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
     lumbermillNavButton.addEventListener('click', () => {
+        playSound(clickSound); // Play click sound
         currentView = 'lumbermill';
         // Clear any ongoing activities if switching views
         if (choppingIntervalRef) clearInterval(choppingIntervalRef);
@@ -1964,9 +2048,11 @@ document.addEventListener('DOMContentLoaded', () => {
         teleportModal.classList.remove('show'); // Hide modal if open
         renderApp();
     });
+    lumbermillNavButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
     // New: Event listener for Shop button
     shopNavButton.addEventListener('click', () => {
+        playSound(clickSound); // Play click sound
         currentView = 'shop';
         // Clear any ongoing activities if switching views
         if (choppingIntervalRef) clearInterval(choppingIntervalRef);
@@ -1976,9 +2062,11 @@ document.addEventListener('DOMContentLoaded', () => {
         teleportModal.classList.remove('show'); // Hide modal if open
         renderApp();
     });
+    shopNavButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
     // New: Event listener for Quests button
     questsNavButton.addEventListener('click', () => {
+        playSound(clickSound); // Play click sound
         currentView = 'quests';
         // Clear any ongoing activities if switching views
         if (choppingIntervalRef) clearInterval(choppingIntervalRef);
@@ -1987,9 +2075,11 @@ document.addEventListener('DOMContentLoaded', () => {
         teleportModal.classList.remove('show'); // Hide modal if open
         renderApp();
     });
+    questsNavButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
     // New: Event listener for House button
     houseNavButton.addEventListener('click', () => {
+        playSound(clickSound); // Play click sound
         currentView = 'house';
         // Clear any ongoing activities if switching views
         isDragging = false; // Reset dragging state for house
@@ -2001,9 +2091,11 @@ document.addEventListener('DOMContentLoaded', () => {
         teleportModal.classList.remove('show'); // Hide modal if open
         renderApp();
     });
+    houseNavButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
     // New: Event listener for Teleport button
     teleportNavButton.addEventListener('click', () => {
+        playSound(clickSound); // Play click sound
         currentView = 'teleport'; // Set view to teleport (no content rendered, just modal)
         // Clear any ongoing activities if switching views
         if (choppingIntervalRef) clearInterval(choppingIntervalRef);
@@ -2016,17 +2108,21 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDisplays(); // Ensure displays are updated
         dynamicContentArea.innerHTML = ''; // Clear main content area
     });
+    teleportNavButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
     // New: Event listener for closing the teleport modal
     closeTeleportModalButton.addEventListener('click', () => {
+        playSound(clickSound); // Play click sound
         teleportModal.classList.remove('show');
         // Revert to the default view or previous view after closing modal
         currentView = 'widowTrees';
         renderApp();
     });
+    closeTeleportModalButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
     // Handle the start button click
     startButton.addEventListener('click', () => {
+        playSound(clickSound); // Play click sound
         startScreen.classList.add('hidden'); // Hide the start screen
         mainGameContainer.classList.remove('hidden'); // Show the main game content
         backgroundMusic.play().catch(error => {
@@ -2036,6 +2132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderApp(); // Initial render of the game content
         // Removed startRandomQuest() from here. Quests will now be started manually.
     });
+    startButton.addEventListener('mouseover', () => playSound(hoverSound)); // Add hover sound
 
     // Hide loading screen and show start screen once all assets are loaded
     window.onload = () => {
